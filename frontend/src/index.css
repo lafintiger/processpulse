@@ -186,3 +186,119 @@ h1, h2, h3, h4, h5, h6 {
   background-color: rgba(20, 184, 166, 0.3);
   color: #ccfbf1;
 }
+
+/* Prose styles for TipTap editor */
+.prose {
+  color: #e4e4e7;
+  line-height: 1.75;
+}
+
+.prose h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #fafafa;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #fafafa;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #fafafa;
+}
+
+.prose p {
+  margin-bottom: 1rem;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose u {
+  text-decoration: underline;
+}
+
+.prose ul, .prose ol {
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose blockquote {
+  border-left: 3px solid #0d9488;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 1rem;
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+.prose code {
+  background-color: #27272a;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-family-mono);
+  font-size: 0.875em;
+}
+
+.prose pre {
+  background-color: #18181b;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.prose a {
+  color: #14b8a6;
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: #2dd4bf;
+}
+
+/* TipTap placeholder */
+.tiptap p.is-editor-empty:first-child::before {
+  color: #52525b;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* TipTap focus styles */
+.tiptap:focus {
+  outline: none;
+}
+
+/* Prose invert for dark mode */
+.prose-invert {
+  color: #d4d4d8;
+}

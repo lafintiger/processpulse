@@ -11,8 +11,19 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.17",
+    "@tiptap/extension-character-count": "^3.13.0",
+    "@tiptap/extension-highlight": "^3.13.0",
+    "@tiptap/extension-placeholder": "^3.13.0",
+    "@tiptap/extension-text-align": "^3.13.0",
+    "@tiptap/extension-typography": "^3.13.0",
+    "@tiptap/extension-underline": "^3.13.0",
+    "@tiptap/pm": "^3.13.0",
+    "@tiptap/react": "^3.13.0",
+    "@tiptap/starter-kit": "^3.13.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
