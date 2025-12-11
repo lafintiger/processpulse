@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* Custom theme variables */
+@theme {
+  --color-surface-50: #fafafa;
+  --color-surface-100: #f4f4f5;
+  --color-surface-200: #e4e4e7;
+  --color-surface-300: #d4d4d8;
+  --color-surface-400: #a1a1aa;
+  --color-surface-500: #71717a;
+  --color-surface-600: #52525b;
+  --color-surface-700: #3f3f46;
+  --color-surface-800: #27272a;
+  --color-surface-900: #18181b;
+  --color-surface-950: #09090b;
+  
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  
+  --font-family-sans: 'DM Sans', system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', monospace;
+  --font-family-display: 'DM Sans', system-ui, sans-serif;
+}
+
+/* Base styles */
+body {
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-100);
+  font-family: var(--font-family-sans);
+  background-image: 
+    radial-gradient(ellipse at top, rgba(20, 184, 166, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(251, 191, 36, 0.05) 0%, transparent 50%);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* Custom utilities */
+.card {
+  background-color: rgba(24, 24, 27, 0.8);
+  backdrop-filter: blur(8px);
+  border-radius: 1rem;
+  border: 1px solid rgba(63, 63, 70, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.card-hover {
+  transition: all 0.3s;
+}
+
+.card-hover:hover {
+  border-color: rgba(20, 184, 166, 0.3);
+  box-shadow: 0 25px 50px -12px rgba(20, 184, 166, 0.1);
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background-color: #0d9488;
+  color: white;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.25);
+}
+
+.btn-primary:hover {
+  background-color: #14b8a6;
+  box-shadow: 0 20px 25px -5px rgba(20, 184, 166, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+  transform: none;
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background-color: #27272a;
+  color: #f4f4f5;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  border: 1px solid #3f3f46;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #3f3f46;
+  border-color: #52525b;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: rgba(39, 39, 42, 0.5);
+  border: 1px solid #3f3f46;
+  border-radius: 0.75rem;
+  color: #f4f4f5;
+  transition: all 0.2s;
+}
+
+.input-field::placeholder {
+  color: #a1a1aa;
+}
+
+.input-field:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(20, 184, 166, 0.5);
+  border-color: #14b8a6;
+}
+
+.score-exemplary {
+  color: #34d399;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.score-proficient {
+  color: #2dd4bf;
+  background-color: rgba(20, 184, 166, 0.1);
+  border-color: rgba(20, 184, 166, 0.3);
+}
+
+.score-developing {
+  color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.score-inadequate {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #18181b;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #3f3f46;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #52525b;
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(20, 184, 166, 0.3);
+  color: #ccfbf1;
+}

@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.cursor/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node/Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+*.tgz
+
+# Test outputs
+test_assessment_result.json
+
+# Temporary
+*.tmp
+*.temp
+.cache/
+
+# Samples (keep structure but ignore large files)
+# Samples/*.json  # Keep for reference
+
+# Vector DB
+chroma_db/
+*.faiss
+
