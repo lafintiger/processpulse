@@ -36,13 +36,18 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 - Authenticity flags (suspicious patterns)
 - Export assessment reports
 
-### Writer (Writing Interface) ✅
+### Writer (Writing Interface) ✅ PROTOTYPE READY
 - Rich text editor (TipTap) with formatting toolbar
 - AI chat sidebar with streaming responses
 - Inline editing with Cmd/Ctrl+K
 - **Right-click context menu** → Edit with AI, Copy, Cut
 - **Find & Replace** (Ctrl+F, Ctrl+H)
 - **Insert links** via toolbar
+- **Export options** — DOCX, TXT, HTML, JSON (for assessment)
+- **Browser spell check** — Built-in spell checking
+- **Keyboard shortcuts help** — Press Ctrl+/ for full list
+- **Welcome onboarding** — First-time user tutorial
+- **Auto-save indicator** — Shows when saved with timestamp
 - Support for local AI (Ollama) or commercial APIs (OpenAI, Claude)
 - "Bring your own API key" for students
 - Automatic process capture for assessment
@@ -314,7 +319,7 @@ python test_assessment.py
 - [x] Assessment with evidence citations
 - [x] Basic UI
 
-### Phase 2: Writing Interface ✅
+### Phase 2: Writing Interface ✅ PROTOTYPE READY
 - [x] TipTap rich text editor
 - [x] AI provider abstraction
 - [x] Chat sidebar with streaming
@@ -326,8 +331,13 @@ python test_assessment.py
 - [x] Session metrics
 - [x] Backend session storage
 - [x] Process capture export
-- [ ] Export to PDF/DOCX
-- [ ] Spell check integration
+- [x] Export to DOCX/TXT/HTML
+- [x] Browser spell check
+- [x] Keyboard shortcuts help (Ctrl+/)
+- [x] Welcome onboarding modal
+- [x] Auto-save indicator
+- [x] Error boundary (crash recovery)
+- [ ] Export to PDF
 
 ### Phase 3: Institutional Features 📋
 - [ ] Batch assessment
