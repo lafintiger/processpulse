@@ -107,6 +107,36 @@ export function Editor({ className }: EditorProps) {
     }
   }, [editor, writerDocument?.id])
   
+  // Apply inline edit suggestion (for Ctrl+K popup)
+  const applyInlineSuggestion = useCallback((suggestion: string, from: number, to: number) => {
+    if (!editor) return
+    
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .deleteSelection()
+      .insertContent(suggestion)
+      .run()
+  }, [editor])
+  
+  // Apply pending suggestion from chat (Cursor-like)
+  const handleAcceptPendingSuggestion = useCallback(() => {
+    if (!editor || !pendingSuggestion) return
+    
+    const { text, position } = pendingSuggestion
+    
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: position.from, to: position.to })
+      .deleteSelection()
+      .insertContent(text)
+      .run()
+    
+    acceptPendingSuggestion()
+  }, [editor, pendingSuggestion, acceptPendingSuggestion])
+  
   // Keyboard shortcuts
   useEffect(() => {
     if (!editor) return
@@ -153,36 +183,6 @@ export function Editor({ className }: EditorProps) {
     editor.view.dom.addEventListener('paste', handlePaste)
     return () => editor.view.dom.removeEventListener('paste', handlePaste)
   }, [editor, captureEvent])
-  
-  // Apply inline edit suggestion (for Ctrl+K popup)
-  const applyInlineSuggestion = useCallback((suggestion: string, from: number, to: number) => {
-    if (!editor) return
-    
-    editor
-      .chain()
-      .focus()
-      .setTextSelection({ from, to })
-      .deleteSelection()
-      .insertContent(suggestion)
-      .run()
-  }, [editor])
-  
-  // Apply pending suggestion from chat (Cursor-like)
-  const handleAcceptPendingSuggestion = useCallback(() => {
-    if (!editor || !pendingSuggestion) return
-    
-    const { text, position } = pendingSuggestion
-    
-    editor
-      .chain()
-      .focus()
-      .setTextSelection({ from: position.from, to: position.to })
-      .deleteSelection()
-      .insertContent(text)
-      .run()
-    
-    acceptPendingSuggestion()
-  }, [editor, pendingSuggestion, acceptPendingSuggestion])
   
   if (!editor) {
     return (
