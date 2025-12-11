@@ -361,3 +361,215 @@ export const INLINE_EDIT_SYSTEM_PROMPT = `You are a writing assistant helping wi
 3. Preserve the student's voice
 4. Only output the revised text, nothing else`
 
+// ============================================
+// Perplexica Search Provider (Local)
+// ============================================
+
+export interface PerplexicaSource {
+  pageContent: string
+  metadata: {
+    title: string
+    url: string
+  }
+}
+
+export interface PerplexicaSearchResult {
+  message: string
+  sources: PerplexicaSource[]
+}
+
+export interface PerplexicaModel {
+  name: string
+  key: string
+}
+
+export interface PerplexicaProviderInfo {
+  id: string
+  name: string
+  chatModels: PerplexicaModel[]
+  embeddingModels: PerplexicaModel[]
+}
+
+export type PerplexicaFocusMode = 
+  | 'webSearch' 
+  | 'academicSearch' 
+  | 'writingAssistant' 
+  | 'wolframAlphaSearch' 
+  | 'youtubeSearch' 
+  | 'redditSearch'
+
+export interface PerplexicaSearchOptions {
+  focusMode?: PerplexicaFocusMode
+  optimizationMode?: 'speed' | 'balanced'
+  systemInstructions?: string
+  history?: Array<['human' | 'assistant', string]>
+  stream?: boolean
+}
+
+export class PerplexicaClient {
+  private baseUrl: string
+  private providers: PerplexicaProviderInfo[] | null = null
+  private defaultChatModel: { providerId: string; key: string } | null = null
+  private defaultEmbeddingModel: { providerId: string; key: string } | null = null
+  
+  constructor(baseUrl = 'http://localhost:3000') {
+    this.baseUrl = baseUrl
+  }
+  
+  /**
+   * Check if Perplexica is available
+   */
+  async isAvailable(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/providers`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+  
+  /**
+   * Get available providers and models
+   */
+  async getProviders(): Promise<PerplexicaProviderInfo[]> {
+    if (this.providers) return this.providers
+    
+    const response = await fetch(`${this.baseUrl}/api/providers`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch Perplexica providers')
+    }
+    
+    const data = await response.json()
+    this.providers = data.providers || []
+    
+    // Set defaults from first provider with models
+    for (const provider of this.providers!) {
+      if (!this.defaultChatModel && provider.chatModels?.length > 0) {
+        this.defaultChatModel = {
+          providerId: provider.id,
+          key: provider.chatModels[0].key,
+        }
+      }
+      if (!this.defaultEmbeddingModel && provider.embeddingModels?.length > 0) {
+        this.defaultEmbeddingModel = {
+          providerId: provider.id,
+          key: provider.embeddingModels[0].key,
+        }
+      }
+    }
+    
+    return this.providers!
+  }
+  
+  /**
+   * Perform a search query
+   */
+  async search(
+    query: string,
+    options: PerplexicaSearchOptions = {}
+  ): Promise<PerplexicaSearchResult> {
+    // Ensure we have providers loaded
+    if (!this.defaultChatModel || !this.defaultEmbeddingModel) {
+      await this.getProviders()
+    }
+    
+    if (!this.defaultChatModel || !this.defaultEmbeddingModel) {
+      throw new Error('No Perplexica models available')
+    }
+    
+    const response = await fetch(`${this.baseUrl}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatModel: this.defaultChatModel,
+        embeddingModel: this.defaultEmbeddingModel,
+        focusMode: options.focusMode || 'webSearch',
+        optimizationMode: options.optimizationMode || 'balanced',
+        query,
+        history: options.history || [],
+        systemInstructions: options.systemInstructions,
+        stream: false,
+      }),
+    })
+    
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Perplexica search failed: ${error}`)
+    }
+    
+    return await response.json()
+  }
+  
+  /**
+   * Perform a streaming search query
+   */
+  async *searchStream(
+    query: string,
+    options: PerplexicaSearchOptions = {}
+  ): AsyncGenerator<{ type: string; data: unknown }, void, unknown> {
+    // Ensure we have providers loaded
+    if (!this.defaultChatModel || !this.defaultEmbeddingModel) {
+      await this.getProviders()
+    }
+    
+    if (!this.defaultChatModel || !this.defaultEmbeddingModel) {
+      throw new Error('No Perplexica models available')
+    }
+    
+    const response = await fetch(`${this.baseUrl}/api/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatModel: this.defaultChatModel,
+        embeddingModel: this.defaultEmbeddingModel,
+        focusMode: options.focusMode || 'webSearch',
+        optimizationMode: options.optimizationMode || 'balanced',
+        query,
+        history: options.history || [],
+        systemInstructions: options.systemInstructions,
+        stream: true,
+      }),
+    })
+    
+    if (!response.ok) {
+      throw new Error('Perplexica streaming search failed')
+    }
+    
+    const reader = response.body?.getReader()
+    if (!reader) return
+    
+    const decoder = new TextDecoder()
+    let buffer = ''
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const parsed = JSON.parse(line)
+            yield parsed
+          } catch {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+  }
+}
+
+// Default Perplexica instance
+export const perplexica = new PerplexicaClient()
+

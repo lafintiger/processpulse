@@ -8,8 +8,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
-import type { AIProvider, ProviderConfig } from '../lib/ai-providers'
-import { createProvider, OllamaProvider } from '../lib/ai-providers'
+import type { AIProvider, ProviderConfig, PerplexicaSearchResult, PerplexicaSource, PerplexicaFocusMode } from '../lib/ai-providers'
+import { createProvider, OllamaProvider, perplexica } from '../lib/ai-providers'
 
 // ============================================
 // Event Types for Process Capture
@@ -29,6 +29,7 @@ export type EventType =
   | 'ai_accept'
   | 'ai_reject'
   | 'ai_modify'
+  | 'web_search'        // Perplexica web search
   | 'document_save'
   | 'undo'
   | 'redo'
@@ -152,6 +153,16 @@ interface WriterState {
   // Session Metrics (for academic integrity)
   metrics: SessionMetrics
   
+  // Web Search (Perplexica)
+  searchOpen: boolean
+  searchQuery: string
+  searchResults: PerplexicaSearchResult | null
+  searchSources: PerplexicaSource[]
+  isSearching: boolean
+  searchError: string | null
+  searchFocusMode: PerplexicaFocusMode
+  perplexicaAvailable: boolean
+  
   // Settings
   settings: WriterSettings
   
@@ -203,6 +214,16 @@ interface WriterState {
   // Settings Actions
   updateSettings: (settings: Partial<WriterSettings>) => void
   initializeProvider: () => Promise<void>
+  
+  // Web Search Actions
+  openSearch: () => void
+  closeSearch: () => void
+  setSearchQuery: (query: string) => void
+  setSearchFocusMode: (mode: PerplexicaFocusMode) => void
+  performSearch: () => Promise<void>
+  clearSearchResults: () => void
+  insertSearchResultToChat: (result: string, sources: PerplexicaSource[]) => void
+  checkPerplexicaAvailable: () => Promise<void>
 }
 
 // Default settings
@@ -254,6 +275,17 @@ export const useWriterStore = create<WriterState>()(
         totalFocusLostDuration: 0,
         lastFocusLostTime: null,
       },
+      
+      // Web Search initial state
+      searchOpen: false,
+      searchQuery: '',
+      searchResults: null,
+      searchSources: [],
+      isSearching: false,
+      searchError: null,
+      searchFocusMode: 'webSearch',
+      perplexicaAvailable: false,
+      
       settings: defaultSettings,
       provider: null,
       providerStatus: 'checking',
@@ -762,10 +794,113 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
             providerStatus: available ? 'connected' : 'disconnected',
           })
           
+          // Also check Perplexica availability
+          get().checkPerplexicaAvailable()
+          
         } catch (error) {
           console.error('Failed to initialize provider:', error)
           set({ providerStatus: 'disconnected' })
         }
+      },
+      
+      // ============================================
+      // Web Search Actions (Perplexica)
+      // ============================================
+      
+      checkPerplexicaAvailable: async () => {
+        try {
+          const available = await perplexica.isAvailable()
+          set({ perplexicaAvailable: available })
+        } catch {
+          set({ perplexicaAvailable: false })
+        }
+      },
+      
+      openSearch: () => {
+        set({ searchOpen: true, searchError: null })
+      },
+      
+      closeSearch: () => {
+        set({ searchOpen: false })
+      },
+      
+      setSearchQuery: (query: string) => {
+        set({ searchQuery: query })
+      },
+      
+      setSearchFocusMode: (mode) => {
+        set({ searchFocusMode: mode })
+      },
+      
+      performSearch: async () => {
+        const { searchQuery, searchFocusMode, perplexicaAvailable } = get()
+        
+        if (!searchQuery.trim()) {
+          set({ searchError: 'Please enter a search query' })
+          return
+        }
+        
+        if (!perplexicaAvailable) {
+          set({ searchError: 'Perplexica is not available. Make sure it is running at http://localhost:3000' })
+          return
+        }
+        
+        set({ isSearching: true, searchError: null, searchResults: null, searchSources: [] })
+        
+        try {
+          // Capture search event
+          get().captureEvent('web_search', {
+            content: searchQuery,
+            metadata: { focusMode: searchFocusMode },
+          })
+          
+          const result = await perplexica.search(searchQuery, {
+            focusMode: searchFocusMode,
+            optimizationMode: 'balanced',
+          })
+          
+          set({
+            searchResults: result,
+            searchSources: result.sources || [],
+            isSearching: false,
+          })
+          
+        } catch (error) {
+          console.error('Search failed:', error)
+          set({
+            searchError: error instanceof Error ? error.message : 'Search failed',
+            isSearching: false,
+          })
+        }
+      },
+      
+      clearSearchResults: () => {
+        set({
+          searchResults: null,
+          searchSources: [],
+          searchQuery: '',
+          searchError: null,
+        })
+      },
+      
+      insertSearchResultToChat: (result: string, sources) => {
+        // Format sources as citations
+        const citations = sources.length > 0
+          ? '\n\n**Sources:**\n' + sources.map((s, i) => `${i + 1}. [${s.metadata.title}](${s.metadata.url})`).join('\n')
+          : ''
+        
+        // Add as assistant message in chat
+        const message: ChatMessage = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: `**Search Result:**\n\n${result}${citations}`,
+          timestamp: Date.now(),
+        }
+        
+        set(state => ({
+          chatMessages: [...state.chatMessages, message],
+          searchOpen: false,
+        }))
       },
     }),
     {

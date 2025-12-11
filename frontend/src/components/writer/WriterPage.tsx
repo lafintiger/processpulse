@@ -13,6 +13,7 @@ import { useWriterStore } from '../../stores/writer-store'
 import { Editor } from './Editor'
 import { ChatSidebar } from './ChatSidebar'
 import { SettingsPanel } from './SettingsPanel'
+import { SearchPanel } from './SearchPanel'
 import { exportToDocx, exportToTxt, exportToHtml } from '../../lib/export-utils'
 
 export function WriterPage() {
@@ -29,6 +30,10 @@ export function WriterPage() {
     settings,
     events,
     saveSessionToBackend,
+    searchOpen,
+    openSearch,
+    closeSearch,
+    perplexicaAvailable,
   } = useWriterStore()
   
   const [showSettings, setShowSettings] = useState(false)
@@ -359,6 +364,22 @@ export function WriterPage() {
              settings.providerType === 'openai' ? 'OpenAI' : 'Claude'}
           </div>
           
+          {/* Web Search Button */}
+          <button
+            onClick={openSearch}
+            className={`p-2 transition-colors flex items-center gap-1 ${
+              perplexicaAvailable 
+                ? 'text-zinc-500 hover:text-indigo-400' 
+                : 'text-zinc-700 cursor-not-allowed'
+            }`}
+            title={perplexicaAvailable ? 'Web Search (Perplexica)' : 'Perplexica not available'}
+            disabled={!perplexicaAvailable}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          
           {/* Export Dropdown */}
           <div className="relative">
             <button
@@ -486,6 +507,9 @@ export function WriterPage() {
       
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
       
+      {/* Search Panel (Perplexica) */}
+      <SearchPanel isOpen={searchOpen} onClose={closeSearch} />
+      
       {/* Welcome Modal (first time) */}
       {showWelcome && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
@@ -524,6 +548,18 @@ export function WriterPage() {
                 <div className="text-sm">
                   <div className="font-medium text-zinc-200">Edit with AI</div>
                   <div className="text-zinc-500">Select text → Right-click → "Edit with AI"</div>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3 p-3 bg-zinc-800/50 rounded-lg">
+                <div className="w-8 h-8 flex-shrink-0 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium text-zinc-200">Web Search</div>
+                  <div className="text-zinc-500">Click the search icon to research online</div>
                 </div>
               </div>
               
