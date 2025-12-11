@@ -272,6 +272,7 @@ curl http://localhost:11434/api/tags
 | Welcome onboarding modal | ✅ Done |
 | Auto-save indicator | ✅ Done |
 | Error boundary (crash recovery) | ✅ Done |
+| **Perplexica Web Search** | ✅ Done |
 
 ## Remaining Features (Future)
 
@@ -352,16 +353,24 @@ curl http://localhost:11434/api/tags
 - Added welcome onboarding modal for first-time users
 - Added auto-save indicator with timestamp
 - Added error boundary component for crash recovery
+- **Added Perplexica Web Search integration**
+  - PerplexicaClient class for local AI-powered search
+  - SearchPanel component with multiple focus modes (Web, Academic, YouTube, Reddit, Wolfram)
+  - Results display with expandable sources and citations
+  - Insert search results directly to chat
+  - Tracks `web_search` events for process capture
 - **PROTOTYPE NOW READY FOR STUDENT TESTING**
 
 **Key Files Added:**
 - `frontend/src/lib/export-utils.ts` - Export utilities
 - `frontend/src/components/ErrorBoundary.tsx` - Error handling
+- `frontend/src/components/writer/SearchPanel.tsx` - Perplexica search UI
 
 **Key Files Modified:**
-- `frontend/src/components/writer/WriterPage.tsx` - Export dropdown, shortcuts modal, welcome modal
+- `frontend/src/lib/ai-providers.ts` - Added PerplexicaClient class
+- `frontend/src/stores/writer-store.ts` - Search state, actions, web_search event type
+- `frontend/src/components/writer/WriterPage.tsx` - Export dropdown, shortcuts modal, welcome modal, search button
 - `frontend/src/components/writer/Editor.tsx` - Spell check enabled
-- `frontend/src/stores/writer-store.ts` - clearCurrentSession action
 - `frontend/src/App.tsx` - Wrapped with ErrorBoundary
 
 ---
