@@ -2,6 +2,7 @@
 Main FastAPI Application
 
 The API backend for Process Analyzer.
+Includes Perplexica proxy for web search.
 """
 
 from contextlib import asynccontextmanager
@@ -58,7 +59,7 @@ def create_app() -> FastAPI:
     )
     
     # Register routers
-    from app.api.routes import health, models, upload, rubric, assessment, sessions
+    from app.api.routes import health, models, upload, rubric, assessment, sessions, perplexica
     
     application.include_router(health.router, tags=["Health"])
     application.include_router(models.router, prefix="/api/models", tags=["Models"])
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     application.include_router(rubric.router, prefix="/api/rubric", tags=["Rubric"])
     application.include_router(assessment.router, prefix="/api/assessment", tags=["Assessment"])
     application.include_router(sessions.router, tags=["Sessions"])
+    application.include_router(perplexica.router, tags=["Perplexica"])
     
     return application
 

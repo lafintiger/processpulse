@@ -34,6 +34,7 @@ export function WriterPage() {
     openSearch,
     closeSearch,
     perplexicaAvailable,
+    checkPerplexicaAvailable,
   } = useWriterStore()
   
   const [showSettings, setShowSettings] = useState(false)
@@ -49,9 +50,10 @@ export function WriterPage() {
     return !localStorage.getItem('processpulse_welcomed')
   })
   
-  // Initialize AI provider on mount
+  // Initialize AI provider and check Perplexica on mount
   useEffect(() => {
     initializeProvider()
+    checkPerplexicaAvailable()
   }, [])
   
   // Auto-save
