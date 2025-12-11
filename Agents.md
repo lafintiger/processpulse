@@ -1,476 +1,544 @@
-# Agent Handoff Document
-**Project:** AI-Assisted Writing Process Analyzer  
-**Last Updated:** December 10, 2025  
-**Status:** PRD Complete - Ready for Development
+# Agent Handoff Document - ProcessPulse
+
+**Project:** ProcessPulse (AI-Assisted Writing Process Analyzer)  
+**Last Updated:** December 11, 2025  
+**Status:** Phase 1 MVP + Phase 2 Writing Interface (in progress)  
+**GitHub:** https://github.com/lafintiger/processpulse
 
 ---
 
-## Project Overview
+## Executive Summary
 
-This application allows educators to assess student writing assignments by analyzing both the final essay AND the complete chat history of student-AI collaboration. The focus is on evaluating the **thinking process** (80% of grade) rather than just the final product (20%).
+ProcessPulse is an application for educators to assess student writing by analyzing both the final essay AND the complete AI collaboration history. The core philosophy is **80/20 assessment**: 80% of the grade comes from the thinking process, 20% from the final product.
 
-**Key Innovation:** Makes student thinking visible through required AI chat history submission, enabling assessment of intellectual honesty, critical engagement, iteration, and genuine pursuit of truth.
-
----
-
-## Current Status
-
-✅ **Completed:**
-- Comprehensive PRD created (`PRD.md`)
-- Core requirements gathered
-- Technical architecture defined
-- User workflows documented
-- Assessment rubrics provided in `RubricDocs/`
-
-🔄 **Next Steps:**
-- Begin Phase 1 development (MVP)
-- Project setup and environment configuration
-- Start with Gradio UI skeleton
+**Current State:** 
+- Backend (FastAPI) is functional with assessment pipeline
+- Frontend (React) analyzer mode works
+- **NEW:** Writer interface being built (Phase 2) - currently debugging black screen on document creation
 
 ---
 
-## Critical Context for Next Agent
+## Project Architecture
 
-### 1. Core Philosophy
-This tool is **NOT** about catching students using AI (AI use is required). It's about teaching them to:
-- Think critically WHILE using AI
-- Iterate and refine ideas
-- Seek opposing viewpoints
-- Verify information
-- Be intellectually honest
+### Directory Structure
 
-The rubric (see `RubricDocs/rubric.md`) reflects this 80/20 split:
-- 50 points: AI Collaboration Process
-- 20 points: Metacognitive Awareness
-- 10 points: Transparency & Integrity
-- 20 points: Final Essay Quality
+```
+Process-Analyzer/
+├── app/                          # Python backend
+│   ├── __init__.py
+│   ├── config.py                 # Settings (Pydantic BaseSettings)
+│   ├── api/
+│   │   ├── main.py              # FastAPI app + lifespan events
+│   │   └── routes/
+│   │       ├── health.py        # /health, /api/status endpoints
+│   │       ├── models.py        # /api/models (Ollama model list)
+│   │       ├── upload.py        # /api/upload/essay, /api/upload/chat-history
+│   │       ├── rubric.py        # /api/rubric (get rubric)
+│   │       └── assessment.py    # Assessment endpoints (placeholder)
+│   ├── db/
+│   │   ├── database.py          # SQLite + SQLAlchemy async setup
+│   │   └── models.py            # ORM models (Rubric, Submission, Assessment, etc.)
+│   └── services/
+│       ├── parsing/
+│       │   ├── chat_parser.py   # Parse various chat history formats
+│       │   └── essay_parser.py  # Parse TXT, DOCX, PDF, MD files
+│       ├── ollama/
+│       │   └── client.py        # Async Ollama API client
+│       ├── rag/
+│       │   ├── chunker.py       # Chunk chat histories
+│       │   ├── embeddings.py    # Generate embeddings via Ollama
+│       │   └── retriever.py     # Retrieve relevant chunks
+│       ├── rubric/
+│       │   └── loader.py        # Load rubric from markdown
+│       └── assessment/
+│           ├── analyzer.py      # Full assessment pipeline
+│           └── prompts.py       # System/criterion/summary prompts
+│
+├── frontend/                     # React + Vite + TailwindCSS v4
+│   ├── src/
+│   │   ├── App.tsx              # Main app - routes between Home/Writer/Analyzer
+│   │   ├── index.css            # TailwindCSS + custom styles + TipTap styles
+│   │   ├── types.ts             # TypeScript interfaces
+│   │   ├── components/
+│   │   │   ├── Header.tsx       # App header
+│   │   │   ├── StatusBar.tsx    # System status (Ollama, model, etc.)
+│   │   │   ├── FileUpload.tsx   # Upload essay + chat history
+│   │   │   ├── AssessmentResults.tsx  # Display assessment scores
+│   │   │   ├── ChatViewer.tsx   # View chat history with highlighting
+│   │   │   └── writer/          # NEW: Writing interface components
+│   │   │       ├── WriterPage.tsx     # Main writer page
+│   │   │       ├── Editor.tsx         # TipTap rich text editor
+│   │   │       ├── ChatSidebar.tsx    # AI chat sidebar
+│   │   │       ├── InlineEditPopup.tsx # Cmd+K inline editing
+│   │   │       ├── SettingsPanel.tsx  # AI provider settings
+│   │   │       └── index.ts           # Exports
+│   │   ├── lib/
+│   │   │   └── ai-providers.ts  # AI provider abstraction (Ollama, OpenAI, Claude)
+│   │   └── stores/
+│   │       └── writer-store.ts  # Zustand state management for writer
+│   ├── package.json             # Dependencies
+│   └── vite.config.ts           # Vite configuration
+│
+├── data/
+│   ├── process_analyzer.db      # SQLite database
+│   └── chroma/                  # ChromaDB vector storage (if used)
+│
+├── RubricDocs/
+│   ├── rubric.md               # Full 11-criterion rubric
+│   ├── rubric for students.md  # Student-facing version
+│   ├── AI and Writing Assignments - The New Paradigm.md  # Philosophy doc
+│   └── sample copy paste gpt.md # Sample ChatGPT export format
+│
+├── Samples/
+│   ├── Sample 1.md             # Sample essay (may be empty - Synology sync issue)
+│   ├── Sample1-chat history.json # LM Studio format chat history
+│   └── sample2.docx            # Sample essay in DOCX format
+│
+├── requirements.txt            # Python dependencies
+├── run.py                      # Backend entry point (uvicorn)
+├── test_setup.py              # Verify setup script
+├── test_assessment.py         # Test assessment pipeline
+├── PRD.md                     # Product Requirements Document
+└── README.md                  # User-facing documentation
+```
 
-### 2. User Profile
-**Primary User:** College instructor, may not be highly technical
-- Needs simple, intuitive web interface
-- Wants to grade 10-30 submissions per assignment
-- Must review and adjust AI assessments (not blind trust)
-- Values privacy and local processing
+---
 
-**User's Technical Environment:**
-- High-end Windows laptop (RTX 5090, 24GB VRAM, 64GB RAM)
-- Can run largest Ollama models
-- Has many models installed (see PRD for full list)
-- Comfortable with technical concepts but UI should still be user-friendly
+## Backend Details
 
-### 3. Key Technical Decisions Made
+### Database Models (`app/db/models.py`)
 
-**Frontend:** Gradio
-- Rapid development
-- Built-in public link feature
-- Good for drag-and-drop interfaces
-- Python-native (easy integration with backend)
+```python
+# Core models:
+- Rubric: Container for categories
+- Category: AI Collaboration Process, Metacognitive Awareness, etc.
+- Criterion: Individual criteria within categories
+- Level: Scoring levels (Exemplary/Proficient/Developing/Inadequate)
+- Assignment: Assignment context
+- Submission: Essay + chat history for grading
+- Assessment: Assessment results
+- CriterionScore: Individual criterion scores with evidence
+- AuthenticityFlag: Flags for suspicious patterns
+- Prompt: Versioned assessment prompts
+```
 
-**Backend:** FastAPI
-- Async support for concurrent model calls
-- Easy API documentation
-- WebSocket support for progress updates
+### API Routes
 
-**Database:** PostgreSQL (recommended) or SQLite (easier MVP start)
-- User prefers PostgreSQL for scalability
-- But SQLite may be faster to get MVP working
-- **Your call on what to start with**
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/health` | GET | Simple health check |
+| `/api/status` | GET | Full system status (Ollama, models, DB) |
+| `/api/models` | GET | List available Ollama models |
+| `/api/upload/essay` | POST | Upload & parse essay file |
+| `/api/upload/chat-history` | POST | Upload & parse chat history |
+| `/api/rubric` | GET | Get full rubric structure |
 
-**AI Infrastructure:**
-- Ollama for local LLMs (port 11434)
-- RAG implementation needed for long chat histories
-- Vector DB: ChromaDB or FAISS
+### Services Architecture
 
-**Privacy-First:**
-- Everything runs locally by default
-- No cloud services (Phase 1)
-- Commercial APIs (OpenAI, Anthropic) optional in future
+**Chat Parser (`chat_parser.py`):**
+- Detects format: LM Studio JSON, ChatGPT JSON, plain text/markdown
+- Converts to canonical format: `List[ChatMessage]` with role, content, timestamp
+- `ChatFormat` enum: CHATGPT_JSON, LM_STUDIO_JSON, PLAIN_TEXT, UNKNOWN
 
-### 4. Recommended Models (User Has These)
+**Essay Parser (`essay_parser.py`):**
+- Handles: `.txt`, `.md`, `.docx`, `.pdf`
+- Returns: `EssayContent` with raw text, word count, format
 
-**For Assessment Analysis:**
-- **Primary:** `qwen3:32b` (19GB) - Best reasoning, handles long contexts
-- **Secondary:** `gemma3:27b` (17GB) - Good instruction following
-- **Tertiary:** `ministral-3:latest` (6GB) - Fast, efficient
+**Ollama Client (`ollama/client.py`):**
+- Async client for Ollama API
+- Methods: `list_models()`, `generate()`, `embed()`
+- Base URL: `http://localhost:11434`
 
-**For Embeddings (RAG):**
-- **Recommended:** `bge-m3` (1.2GB) - User has this installed
-- **Alternative:** `embeddinggemma` (621MB) - Lighter weight
-- **Consider adding:** `nomic-embed-text` - Excellent for long documents
+**RAG Pipeline:**
+- `chunker.py`: Chunks by exchange (Q+A pairs)
+- `embeddings.py`: Generates embeddings via `bge-m3` model
+- `retriever.py`: Retrieves top-K relevant chunks
 
-**Multi-Model "Three Judges" Feature:**
-- Run 2-3 models on same submission
-- Compare results for consistency
-- Help determine which model works best
-- This is a key differentiator feature
+**Assessment Engine (`assessment/analyzer.py`):**
+- Full pipeline: parse → chunk → embed → retrieve → assess each criterion → summarize
+- Uses structured JSON output for consistent scoring
+- Generates evidence citations
 
-### 5. Critical Technical Challenges
+### Configuration (`app/config.py`)
 
-#### Challenge 1: Chat History Parsing
-**Problem:** Different AI platforms export in different formats
-- ChatGPT: JSON or HTML
-- Claude: Text/Markdown
-- Gemini: (need to research)
-- Grok: (need to research)
+```python
+class Settings(BaseSettings):
+    database_url: str = "sqlite+aiosqlite:///./data/process_analyzer.db"
+    ollama_base_url: str = "http://localhost:11434"
+    default_analysis_model: str = "gpt-oss:latest"  # Changed from qwen3:32b
+    default_embedding_model: str = "bge-m3"
+    debug: bool = True
+```
 
-**Phase 1 Approach:** 
-- Start with ChatGPT JSON format (most common)
-- Add others iteratively
-- Create documentation for students on how to export
+---
 
-**Data Structure Needed:**
-```json
-{
-  "platform": "chatgpt",
-  "exchanges": [
-    {
-      "number": 1,
-      "timestamp": "2025-12-10T10:30:00Z",
-      "student_prompt": "...",
-      "ai_response": "..."
-    }
-  ]
+## Frontend Details
+
+### Tech Stack
+- **React 19** with TypeScript
+- **Vite 7** for bundling
+- **TailwindCSS v4** (new config system - uses CSS imports)
+- **TipTap** for rich text editing
+- **Zustand** for state management
+
+### Key Components
+
+**App.tsx - Route Management:**
+```tsx
+// Three modes:
+type AppMode = 'home' | 'writer' | 'analyzer'
+
+// Home: Choose between Writer (students) and Analyzer (educators)
+// Writer: AI-assisted writing with process capture
+// Analyzer: Upload + assess submissions
+```
+
+**Writer Interface (NEW - Phase 2):**
+
+1. **WriterPage.tsx**: Main container
+   - Shows home screen when no document open
+   - Shows editor view when document active
+   - Manages document list (localStorage)
+   - New Document modal
+
+2. **Editor.tsx**: TipTap rich text editor
+   - Toolbar with formatting options
+   - Keyboard shortcuts (Cmd+B, Cmd+I, Cmd+K for AI edit)
+   - Event capture for process analysis
+   - Word count display
+
+3. **ChatSidebar.tsx**: AI chat panel
+   - Send messages to AI
+   - View conversation history
+   - Streaming responses
+
+4. **InlineEditPopup.tsx**: Cmd+K modal
+   - Select text → Cmd+K → Enter instruction
+   - AI suggests replacement
+   - Accept/reject diff
+
+5. **SettingsPanel.tsx**: AI configuration
+   - Provider selection (Ollama/OpenAI/Claude)
+   - Model configuration
+   - API key input for commercial APIs
+
+### AI Provider Abstraction (`lib/ai-providers.ts`)
+
+```typescript
+interface AIProvider {
+  id: string
+  name: string
+  complete(prompt: string, options?: CompletionOptions): Promise<string>
+  stream(prompt: string, options?: CompletionOptions): AsyncIterable<string>
+  maxContextTokens: number
+  supportsStreaming: boolean
+}
+
+// Implementations:
+- OllamaProvider: Local AI via http://localhost:11434
+- OpenAIProvider: OpenAI API
+- AnthropicProvider: Claude API
+```
+
+### State Management (`stores/writer-store.ts`)
+
+```typescript
+interface WriterState {
+  // Document
+  document: WriterDocument | null
+  documents: DocumentMeta[]
+  
+  // AI
+  provider: AIProvider | null
+  providerStatus: 'disconnected' | 'checking' | 'connected' | 'error'
+  chatMessages: ChatMessage[]
+  
+  // Settings
+  settings: WriterSettings
+  
+  // Events (for process analysis)
+  events: WriterEvent[]
+  
+  // Inline edit
+  inlineEditOpen: boolean
+  inlineEditPosition: { from: number, to: number }
+  selectedText: string
 }
 ```
 
-#### Challenge 2: RAG for Long Chat Histories
-**Problem:** Chat histories can be very long (10-20+ exchanges, each potentially lengthy)
+### Styling (`index.css`)
 
-**Proposed Approach:**
-1. Chunk by exchange (student prompt + AI response = 1 chunk)
-2. Generate embeddings with `bge-m3`
-3. Store in vector DB with metadata (exchange number, timestamp)
-4. For each rubric criterion:
-   - Create targeted query
-   - Retrieve top-K relevant exchanges
-   - Include 2-3 exchanges before/after for context
-   - Pass to LLM for assessment
-
-**Research Needed:**
-- What's the optimal chunking strategy?
-- How much context to include?
-- Best embedding model for this use case?
-- Test and iterate on real data
-
-#### Challenge 3: Prompt Engineering
-**Critical:** The quality of assessments depends entirely on prompt quality
-
-**Requirements:**
-- Prompts must be visible to users (transparency)
-- Prompts must be editable (customization)
-- Need different prompts for:
-  - System instructions
-  - Each rubric criterion assessment
-  - Summary assessment generation
-  - Authenticity/cheating detection
-
-**User expects:** "Masterful prompts" that get models to:
-- Score consistently and fairly
-- Cite specific evidence (exchange numbers)
-- Avoid hallucinations
-- Provide constructive feedback
-- Be neither too harsh nor too lenient
-
-**See PRD Appendix for starting prompt templates**
-
-#### Challenge 4: Hallucination Prevention
-**Strategies to implement:**
-1. **Multiple passes:** Run same assessment 2-3 times, compare results
-2. **Evidence requirement:** Force model to cite specific exchanges
-3. **Multi-model validation:** Compare outputs from different models
-4. **Structured output:** Use JSON response format for consistency
-5. **Human review:** Always require instructor approval
-
-#### Challenge 5: Authenticity Detection
-**Check for signs of cheating:**
-- Suspiciously regular timestamps
-- Essay content not found in chat history
-- Conversation too "clean" (no mistakes, confusion, dead ends)
-- Style inconsistencies
-- AI artifacts (em-dashes, perfect formatting)
-
-**Important:** Frame as "flags for review" not accusations
-- Low/Medium/High severity
-- Instructor makes final judgment
-- Some false positives are acceptable
-
-### 6. MVP Scope (Phase 1)
-
-**Must Have:**
-- ✅ Web UI (Gradio) with file upload
-- ✅ Essay upload (TXT, DOCX, PDF)
-- ✅ Chat history upload (ChatGPT JSON format)
-- ✅ Default rubric loaded (from `RubricDocs/rubric.md`)
-- ✅ Form-based rubric editor (simple)
-- ✅ Ollama connection check
-- ✅ Model selection dropdown
-- ✅ RAG implementation for chat analysis
-- ✅ Single-model assessment pipeline
-- ✅ Results display with evidence citations
-- ✅ Chat history viewer (click citations to see source)
-- ✅ Basic export (PDF, JSON)
-- ✅ Instructor review/adjustment interface
-
-**Nice to Have (but include if easy):**
-- Multi-model "three judges" comparison
-- Multiple passes for consistency
-- Authenticity/cheating detection
-- Prompt viewer/editor
-
-**Definitely Phase 2:**
-- Batch processing multiple students
-- Longitudinal tracking
-- Other AI platform formats (Claude, Gemini, Grok)
-- Student portal
-- Commercial API support
-
-### 7. Key Files to Reference
-
-**Rubrics (Essential for implementation):**
-- `RubricDocs/rubric.md` - Full instructor rubric with detailed criteria
-- `RubricDocs/rubric for students.md` - Student-facing version
-- `RubricDocs/AI and Writing Assignments - The New Paradigm.md` - Context and philosophy
-
-**Project Docs:**
-- `PRD.md` - Complete product requirements (1350 lines, very detailed)
-- `Agents.md` - This handoff document
-
-**What to extract from rubrics:**
-- Category names and point values
-- Criterion names and point values
-- Scoring levels (Exemplary/Proficient/Developing/Inadequate)
-- Point ranges for each level
-- Descriptive text for each level
-- Convert to database schema + JSON format
-
-### 8. Development Approach
-
-**Recommended Order:**
-1. **Week 1: Infrastructure**
-   - Project setup (virtualenv, dependencies)
-   - Gradio UI skeleton (file upload, basic navigation)
-   - Ollama integration (test connection, list models)
-   - Database setup (schema design, migrations)
-
-2. **Week 2: Data Processing**
-   - File parsing (essay extraction)
-   - Chat history parsing (ChatGPT format)
-   - Rubric data model
-   - Load default rubric into DB
-
-3. **Week 3: Analysis Engine**
-   - RAG implementation (chunking, embedding, retrieval)
-   - Prompt templates
-   - Single criterion assessment (prove it works)
-   - Full rubric assessment pipeline
-
-4. **Week 4: Results & Polish**
-   - Results display UI
-   - Evidence citation linking
-   - Chat viewer with highlighting
-   - Export functionality
-   - Testing and bug fixes
-
-**User's preference:** Get basic functionality working first, then iterate and add complexity
-
-### 9. Testing Strategy
-
-**Create Test Dataset Early:**
-- 3-5 sample submissions with:
-  - Essay (TXT/DOCX)
-  - Chat history (real ChatGPT export)
-  - Known "ground truth" scores (manually graded)
-- Use to test:
-  - File parsing
-  - RAG retrieval quality
-  - Assessment accuracy
-  - Consistency across runs
-
-**User will be sole tester initially** but plans to expand to other educators
-
-### 10. Important User Preferences
-
-✅ **Wants:**
-- Research on best practices (chunking, embeddings, prompts)
-- Multiple model comparison to find what works best
-- Flexibility and extensibility
-- Transparency (see all prompts, all logic)
-- Professional but accessible UI
-- Evidence-based assessment (always cite sources)
-
-❌ **Doesn't want:**
-- Black box AI that can't be inspected
-- Cloud dependencies (Phase 1)
-- Overly complex technical setup
-- False accusations of cheating
-- Generic feedback ("good job!")
-
-### 11. Open Research Questions
-
-**You'll need to investigate:**
-
-1. **Best embedding model for educational assessment:**
-   - Compare bge-m3 vs. nomic-embed-text vs. embeddinggemma
-   - Test on real chat histories
-   - Measure retrieval relevance
-
-2. **Optimal chunking for conversations:**
-   - By exchange? By topic? Sliding window?
-   - How much context to include?
-   - Test different approaches
-
-3. **Which LLM works best for this task:**
-   - Qwen3-32b? Gemma3-27b? Ministral-3?
-   - Test on sample submissions
-   - Track accuracy, consistency, quality
-   - User wants data-driven recommendation
-
-4. **Multi-model ensemble strategy:**
-   - How to combine scores from multiple models?
-   - Average? Consensus? Weighted?
-   - Test to find best approach
-
-5. **AI platform export formats:**
-   - Document how each platform exports chats
-   - Create parsing logic for each
-   - Provide student instructions
-
-### 12. Common Pitfalls to Avoid
-
-❌ **Don't:** Build overly complex rubric editor in Phase 1
-✅ **Do:** Load default rubric, add simple editor later
-
-❌ **Don't:** Try to support all AI platforms at once
-✅ **Do:** Start with ChatGPT, add others iteratively
-
-❌ **Don't:** Assume first prompt will work perfectly
-✅ **Do:** Plan for prompt iteration and testing
-
-❌ **Don't:** Auto-finalize assessments without human review
-✅ **Do:** Always require instructor approval
-
-❌ **Don't:** Make accusing language for cheating detection
-✅ **Do:** Frame as "items for review" with neutral tone
-
-❌ **Don't:** Hide the AI's reasoning
-✅ **Do:** Show prompts, show evidence, show logic
-
-### 13. Quick Start Checklist for Next Agent
-
-When you begin development:
-
-- [ ] Read PRD.md (especially Phase 1 MVP section)
-- [ ] Read all three rubric files to understand assessment criteria
-- [ ] Review user's available Ollama models (in PRD)
-- [ ] Decide: PostgreSQL or SQLite for MVP?
-- [ ] Set up project structure:
-  ```
-  process-analyzer/
-  ├── app/
-  │   ├── ui/              # Gradio interface
-  │   ├── api/             # FastAPI backend
-  │   ├── models/          # Data models
-  │   ├── services/        # Business logic
-  │   │   ├── parsing/     # File parsing
-  │   │   ├── rag/         # RAG implementation
-  │   │   ├── assessment/  # LLM assessment
-  │   │   └── export/      # Report generation
-  │   └── db/              # Database schemas
-  ├── prompts/             # Assessment prompt templates
-  ├── rubrics/             # Rubric JSON files
-  ├── tests/               # Test suite
-  ├── test_data/           # Sample submissions
-  └── requirements.txt
-  ```
-- [ ] Create requirements.txt (see PRD Appendix D)
-- [ ] Test Ollama connection
-- [ ] Create test dataset (3-5 sample submissions)
-- [ ] Start with Week 1 tasks
-
-### 14. User Communication Style
-
-**User is:**
-- Technical enough to understand architecture decisions
-- Wants to be consulted on major choices
-- Prefers "show me working code" over lengthy discussions
-- Values research-backed recommendations
-- Open to suggestions and alternative approaches
-- Will test and provide feedback iteratively
-
-**When you need input:**
-- Present options with pros/cons
-- Make a recommendation with reasoning
-- Show working prototype when possible
-- Ask specific questions rather than open-ended
-
-### 15. Success Criteria
-
-**MVP is successful when:**
-1. User can upload essay + ChatGPT chat history
-2. System analyzes and produces scored rubric assessment
-3. Every score has evidence citations
-4. User can click citations to see source in chat history
-5. User can review and adjust all scores
-6. System exports clean PDF report
-7. Processing completes in <5 minutes on user's hardware
-8. No crashes or data loss
-9. Assessment scores are reasonable (within ±10% of manual grading)
-
-**Long-term success:**
-- Other educators can use it
-- Saves instructors time while improving assessment quality
-- Students learn to think better through the feedback
-- Tool scales to handle full classes (30+ students)
+- Custom theme variables (@theme block for Tailwind v4)
+- DM Sans font for body, JetBrains Mono for code
+- Dark theme (zinc-950 background)
+- **ProseMirror/TipTap styles** for editor content
+- Custom utility classes: `.card`, `.btn-primary`, `.btn-secondary`
 
 ---
 
-## Final Notes
+## Current Issues & Debugging
 
-This is an ambitious but well-scoped project. The user has thought deeply about the educational problem and has clear requirements. The main challenges are technical (RAG, prompts, parsing) not conceptual.
+### ACTIVE BUG: Writer Black Screen
 
-**Start simple:** Get basic end-to-end flow working, then iterate on quality.
+**Symptom:** After clicking "Create" on new document modal, screen goes black.
 
-**Communicate:** Ask questions when you need clarification. User is responsive and helpful.
+**Investigation:**
+1. No console errors visible
+2. No compilation errors in terminal
+3. TipTap editor might not be rendering visible content
 
-**Document:** Keep this handoff doc updated as you learn what works and what doesn't.
+**Likely Causes:**
+- TipTap `EditorContent` renders but has no visible styling
+- `.ProseMirror` class styles not being applied
+- Editor returns but content area has no contrast
 
-**Have fun:** This is a genuinely useful tool that addresses a real need in education. Your work will help students learn to think better in the age of AI.
+**Fixes Applied:**
+1. Added `@tailwindcss/typography` package
+2. Added explicit `.ProseMirror` styles in `index.css`
+3. Added loading spinner when editor initializing
+4. Added explicit background color to main container
+
+**Next Steps to Debug:**
+1. Check browser DevTools Elements tab to see if HTML is rendering
+2. Add console.log in Editor component to verify it's mounting
+3. Check if TipTap is initializing correctly
+4. Verify `.ProseMirror` class is being applied
+
+### Previous Issues (Resolved)
+
+1. **Unicode Emoji Error**: Windows console couldn't print emojis
+   - Fixed: Removed all emojis from Python print statements
+
+2. **Tailwind v4 Configuration**: New config system different from v3
+   - Fixed: Use `@import "tailwindcss"` and `@tailwindcss/postcss` plugin
+
+3. **Custom Colors Not Working**: `bg-surface-950` class unknown
+   - Fixed: Use standard Tailwind colors or define in `@theme` block
+
+4. **Module Imports**: `ImportError` for various modules
+   - Fixed: Added missing exports to `__init__.py` files
+
+5. **Sample File Empty**: `Sample 1.md` shows 0 bytes
+   - Cause: Synology Drive sync issue
+   - Workaround: Test with `sample2.docx` instead
 
 ---
 
-## Agent Log
+## Models & Configuration
+
+### Default Models (User's System)
+
+**For Analysis:**
+- `gpt-oss:latest` (12.8GB) - Current default, good for writing assistance
+- `qwen3:32b` (19GB) - Original default, best reasoning
+- `qwen3:latest` - Smaller version available
+
+**For Embeddings:**
+- `bge-m3` (1.2GB) - Current embedding model
+
+**User's Hardware:**
+- Windows with RTX 5090, 24GB VRAM
+- 64GB RAM
+- Can run largest models
+
+### Changing Models
+
+Backend: `app/config.py` → `default_analysis_model`
+Frontend: `frontend/src/stores/writer-store.ts` → `defaultSettings.ollamaModel`
+Frontend: `frontend/src/lib/ai-providers.ts` → `OllamaProvider` constructor default
+
+---
+
+## Running the Application
+
+### Backend
+```powershell
+cd C:\Users\lafintiger\SynologyDrive\_aiprojects\__Dev\Process-Analyzer
+.\venv\Scripts\Activate.ps1
+python run.py
+# Runs at http://localhost:8000
+```
+
+### Frontend
+```powershell
+cd C:\Users\lafintiger\SynologyDrive\_aiprojects\__Dev\Process-Analyzer\frontend
+npm run dev
+# Runs at http://localhost:5175 (or next available port)
+```
+
+### Verify Ollama
+```powershell
+curl http://localhost:11434/api/tags
+```
+
+---
+
+## Key Technical Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Database | SQLite (PostgreSQL-ready schema) | Fast MVP, easy migration later |
+| Frontend | React + Vite (not Gradio) | More flexible UI needed for writer |
+| State | Zustand | Lightweight, TypeScript-friendly |
+| Editor | TipTap | Best React editor, extensible |
+| Styling | TailwindCSS v4 | Modern, utility-first |
+| AI Local | Ollama | Privacy, no API costs |
+| AI Cloud | OpenAI/Claude optional | Better for students who prefer |
+
+---
+
+## Assessment Rubric Structure
+
+### Categories (4)
+1. **AI Collaboration Process** (50 points)
+   - Initial Engagement (15)
+   - Iterative Refinement (15)
+   - Critical Evaluation (10)
+   - Synthesis & Integration (10)
+
+2. **Metacognitive Awareness** (20 points)
+   - Self-Reflection (10)
+   - Learning Transfer (10)
+
+3. **Transparency & Integrity** (10 points)
+   - Process Documentation (5)
+   - Ethical Use (5)
+
+4. **Final Essay Quality** (20 points)
+   - Content & Argumentation (8)
+   - Organization (6)
+   - Language & Style (6)
+
+### Scoring Levels
+- Exemplary: 90-100%
+- Proficient: 70-89%
+- Developing: 50-69%
+- Inadequate: 0-49%
+
+---
+
+## Event Capture (Writer Interface)
+
+The writer captures these events for process analysis:
+
+```typescript
+type EventType = 
+  | 'session_start' 
+  | 'session_end'
+  | 'text_insert'
+  | 'text_delete'
+  | 'text_paste'
+  | 'text_select'
+  | 'ai_request'      // Student asked AI something
+  | 'ai_response'     // AI responded
+  | 'inline_edit'     // Used Cmd+K feature
+  | 'document_save'
+```
+
+Each event has:
+- `timestamp`: ISO date string
+- `type`: Event type
+- `data`: Type-specific payload
+
+This enables analysis of:
+- How long student spent writing vs. waiting for AI
+- How many times they revised
+- What kinds of help they asked for
+- Whether they critically evaluated AI suggestions
+
+---
+
+## Files to Read for Context
+
+**Essential:**
+1. `PRD.md` - Full product requirements
+2. `RubricDocs/rubric.md` - Assessment criteria details
+3. `RubricDocs/AI and Writing Assignments - The New Paradigm.md` - Philosophy
+
+**Code Understanding:**
+1. `frontend/src/App.tsx` - App structure
+2. `frontend/src/components/writer/WriterPage.tsx` - Writer flow
+3. `frontend/src/stores/writer-store.ts` - State management
+4. `app/services/assessment/analyzer.py` - Assessment pipeline
+
+---
+
+## Immediate Next Steps
+
+1. **Debug Writer Black Screen**
+   - Add console.log statements to Editor.tsx
+   - Check DevTools Elements for rendered HTML
+   - Verify TipTap initialization
+
+2. **Once Writer Works:**
+   - Test AI chat functionality with gpt-oss model
+   - Test inline editing (Cmd+K)
+   - Verify event capture is recording
+
+3. **Connect Writer to Analyzer:**
+   - Export session as JSON
+   - Import into analyzer for assessment
+   - Backend endpoint to save writing sessions
+
+4. **Polish:**
+   - Error boundaries for better error handling
+   - Loading states for AI operations
+   - Mobile responsiveness (low priority)
+
+---
+
+## User Preferences
+
+**Communication:**
+- Technical, appreciates detailed explanations
+- Wants research-backed recommendations
+- Prefers working code over lengthy discussions
+- Test frequently, iterate quickly
+
+**App Name:** ProcessPulse (chosen from suggestions)
+
+**Key Philosophy:**
+- "Authenticity flags" not "cheat detection"
+- Conservative/aggressive flag options
+- Instructor always makes final decision
+- Process over product (80/20)
+
+---
+
+## Agent Session Log
 
 ### Session 1 - December 10, 2025
 **Agent:** Initial PRD Development Agent  
+**Accomplished:** Created comprehensive PRD, defined architecture, gathered requirements  
+**Handed off to:** Development agent
+
+### Session 2 - December 11, 2025
+**Agent:** Development Agent (Current)  
 **Accomplished:**
-- Conducted detailed requirements gathering (15 clarifying questions)
-- Researched user's available models
-- Created comprehensive 1350-line PRD
-- Defined technical architecture
-- Outlined 10-week development roadmap
-- Created this handoff document
+- Set up complete backend (FastAPI, SQLite, parsers, RAG, assessment)
+- Set up React frontend with Tailwind v4
+- Built analyzer UI (file upload, results display)
+- Resolved multiple configuration issues (Tailwind v4, Unicode, imports)
+- Started Phase 2: Writer interface with TipTap editor
+- Created AI provider abstraction
+- Implemented event capture for process analysis
+- Configured gpt-oss:latest as default model
 
-**Key Decisions:**
-- Gradio for frontend
-- PostgreSQL (or SQLite) for database
-- Ollama with local models (privacy-first)
-- RAG approach for long chat histories
-- Multi-model validation feature
-- 80/20 process-focused assessment
+**Current Blocker:** Writer screen goes black after creating document
 
-**Handed off to:** Next development agent  
-**Status:** Ready to begin coding
+**Key Files Modified This Session:**
+- All files in `frontend/src/components/writer/`
+- `frontend/src/lib/ai-providers.ts`
+- `frontend/src/stores/writer-store.ts`
+- `frontend/src/index.css` (ProseMirror styles)
+- `app/config.py` (model defaults)
 
----
-
-### Session 2 - [Date]
-**Agent:** [Your name/ID]  
-**Working on:** [What you're building]  
-**Decisions made:** [Key technical choices]  
-**Blockers:** [Any issues]  
-**Next agent should know:** [Critical info]
+**Next Agent Should:**
+1. Debug the black screen issue in WriterPage
+2. Test AI integration in writer
+3. Connect writer exports to analyzer
+4. Commit changes to GitHub
 
 ---
 
-*Keep this log updated as the project progresses. Each agent should add their session summary before handing off.*
-
+*This document should be updated whenever significant progress is made or blockers are encountered.*

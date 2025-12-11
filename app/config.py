@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
-    default_analysis_model: str = "qwen3:32b"
+    default_analysis_model: str = "gpt-oss:latest"
     default_embedding_model: str = "bge-m3"
     fallback_analysis_model: str = "ministral:latest"
     fallback_embedding_model: str = "nomic-embed-text"

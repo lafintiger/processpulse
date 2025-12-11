@@ -39,7 +39,7 @@ export class OllamaProvider implements AIProvider {
   private baseUrl: string
   private model: string
   
-  constructor(baseUrl = 'http://localhost:11434', model = 'qwen3:32b') {
+  constructor(baseUrl = 'http://localhost:11434', model = 'gpt-oss:latest') {
     this.baseUrl = baseUrl
     this.model = model
   }

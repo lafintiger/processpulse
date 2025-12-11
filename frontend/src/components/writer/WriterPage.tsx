@@ -257,7 +257,7 @@ export function WriterPage() {
   
   // Main editor view
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#09090b' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
         <div className="flex items-center gap-4">

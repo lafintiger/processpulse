@@ -163,7 +163,7 @@ interface WriterState {
 const defaultSettings: WriterSettings = {
   providerType: 'ollama',
   ollamaBaseUrl: 'http://localhost:11434',
-  ollamaModel: 'qwen3:32b',
+  ollamaModel: 'gpt-oss:latest',
   openaiKey: '',
   openaiModel: 'gpt-4o',
   anthropicKey: '',

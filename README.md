@@ -2,117 +2,367 @@
 
 **AI-Assisted Writing Process Analyzer**
 
-Evaluating thinking, not just writing. 80% process, 20% product.
+> Evaluating thinking, not just writing. 80% process, 20% product.
 
-## Vision
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-ProcessPulse is a tool for educators to assess student writing by analyzing both the final essay AND the complete AI collaboration history. Instead of asking "Did you use AI?", we ask "How did you use AI?"
+---
+
+## Overview
+
+ProcessPulse is a tool for educators to assess student writing by analyzing both the **final essay** AND the **complete AI collaboration history**. Instead of asking "Did you use AI?", we ask "How did you use AI?"
 
 ### Core Philosophy
 
-- **Expect AI use** - Students will use AI; design for transparency
-- **80/20 Assessment** - 80% of the grade comes from the thinking process, 20% from the final product
-- **Make thinking visible** - Require complete chat histories to see how students develop ideas
+- **Expect AI use** — Students will use AI; design for transparency, not prohibition
+- **80/20 Assessment** — 80% of the grade evaluates the thinking process, 20% the final product
+- **Make thinking visible** — Require complete chat histories to see how students develop ideas
 
-## Current Status
+### Two Modes
 
-### Backend (FastAPI + Python)
+1. **Writer Mode** (for Students) — AI-assisted writing environment with full process capture
+2. **Analyzer Mode** (for Educators) — Assess submitted essays + chat histories against an 11-criterion rubric
 
-- [x] Project structure and configuration
-- [x] SQLite database (PostgreSQL-compatible schema)
-- [x] Chat history parsers (LM Studio JSON, plain text)
-- [x] Essay parsers (TXT, DOCX, PDF, Markdown)
-- [x] Rubric system with 11 criteria across 4 categories
-- [x] Ollama integration for local LLMs
-- [x] RAG pipeline (chunking, embeddings, retrieval)
-- [x] Assessment prompts and engine
-- [x] REST API endpoints
+---
 
-### Frontend (React + TailwindCSS)
+## Features
 
-- [x] Basic UI with file upload
-- [x] Status bar with system health
-- [x] Assessment results display
-- [x] Chat history viewer
-- [ ] Full writing interface (Phase 2)
+### Analyzer (Assessment Tool)
+- Upload essays (TXT, DOCX, PDF, Markdown)
+- Upload AI chat histories (ChatGPT, LM Studio, plain text)
+- 11-criterion rubric across 4 categories
+- Evidence-based scoring with citations
+- Multiple model validation ("Three Judges")
+- Authenticity flags (suspicious patterns)
+- Export assessment reports
+
+### Writer (Writing Interface) 🚧 *In Development*
+- Rich text editor (TipTap) with formatting toolbar
+- AI chat sidebar for brainstorming
+- Inline editing with Cmd/Ctrl+K
+- Support for local AI (Ollama) or commercial APIs (OpenAI, Claude)
+- "Bring your own API key" for students
+- Automatic process capture for assessment
+- Event timestamps for every action
+
+---
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 18+
-- Ollama running locally with models:
-  - Analysis: `qwen3:32b` (or similar)
+- **Python 3.11+**
+- **Node.js 18+**
+- **Ollama** running locally with models:
+  - Analysis: `gpt-oss:latest` or `qwen3:32b`
   - Embeddings: `bge-m3`
 
-### Backend Setup
+### Installation
 
 ```bash
-cd Process-Analyzer
+# Clone the repository
+git clone https://github.com/lafintiger/processpulse.git
+cd processpulse
+
+# Backend setup
 python -m venv venv
-.\venv\Scripts\Activate.ps1  # Windows
-# source venv/bin/activate   # Linux/Mac
+.\venv\Scripts\Activate.ps1   # Windows PowerShell
+# source venv/bin/activate    # Linux/macOS
 
 pip install -r requirements.txt
-python run.py
-```
 
-Backend runs at http://localhost:8000
-
-### Frontend Setup
-
-```bash
+# Frontend setup
 cd frontend
 npm install
-npm run dev
+cd ..
 ```
 
-Frontend runs at http://localhost:5174
+### Running
 
-## API Endpoints
+**Terminal 1 - Backend:**
+```bash
+.\venv\Scripts\Activate.ps1
+python run.py
+# API runs at http://localhost:8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm run dev
+# UI runs at http://localhost:5174 (or next available port)
+```
+
+**Verify Ollama is running:**
+```bash
+curl http://localhost:11434/api/tags
+```
+
+---
+
+## Project Structure
+
+```
+Process-Analyzer/
+├── app/                      # Python backend (FastAPI)
+│   ├── api/                  # REST endpoints
+│   │   └── routes/          # health, models, upload, rubric, assessment
+│   ├── db/                   # Database (SQLite + SQLAlchemy)
+│   └── services/             # Business logic
+│       ├── parsing/          # Essay & chat history parsers
+│       ├── ollama/           # Ollama API client
+│       ├── rag/              # Chunking, embeddings, retrieval
+│       ├── rubric/           # Rubric loader
+│       └── assessment/       # Assessment pipeline & prompts
+│
+├── frontend/                 # React + Vite + TailwindCSS
+│   └── src/
+│       ├── components/       # UI components
+│       │   └── writer/       # Writing interface components
+│       ├── lib/              # AI provider abstraction
+│       └── stores/           # Zustand state management
+│
+├── RubricDocs/               # Assessment rubric documentation
+├── Samples/                  # Sample submissions for testing
+├── data/                     # SQLite database & vector storage
+└── requirements.txt          # Python dependencies
+```
+
+---
+
+## API Reference
+
+### Health & Status
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/status` | GET | Full system status |
+| `/health` | GET | Simple health check |
+| `/api/status` | GET | Full system status (Ollama, models, database) |
+
+### Models
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/api/models` | GET | List available Ollama models |
-| `/api/upload/essay` | POST | Upload and parse essay |
+
+### Upload & Parse
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/upload/essay` | POST | Upload and parse essay file |
 | `/api/upload/chat-history` | POST | Upload and parse chat history |
-| `/api/rubric` | GET | Get assessment rubric |
+
+### Assessment
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/rubric` | GET | Get assessment rubric structure |
+
+---
 
 ## Assessment Rubric
 
-| Category | Weight | Criteria |
-|----------|--------|----------|
-| AI Collaboration Process | 50% | Initial Engagement, Iterative Refinement, Critical Evaluation, Synthesis & Integration |
-| Metacognitive Awareness | 20% | Self-Reflection, Learning Transfer |
-| Transparency & Integrity | 10% | Process Documentation, Ethical Use |
-| Final Essay Quality | 20% | Content & Argumentation, Organization, Language & Style |
+### Categories & Weights
+
+| Category | Weight | Description |
+|----------|--------|-------------|
+| AI Collaboration Process | 50% | How student engaged with AI |
+| Metacognitive Awareness | 20% | Reflection on learning |
+| Transparency & Integrity | 10% | Honest documentation |
+| Final Essay Quality | 20% | The actual writing |
+
+### Criteria (11 total)
+
+**AI Collaboration Process (50 points)**
+- Initial Engagement (15) — Quality of first prompts
+- Iterative Refinement (15) — Building on AI responses
+- Critical Evaluation (10) — Questioning AI outputs
+- Synthesis & Integration (10) — Combining ideas effectively
+
+**Metacognitive Awareness (20 points)**
+- Self-Reflection (10) — Understanding own learning
+- Learning Transfer (10) — Applying insights
+
+**Transparency & Integrity (10 points)**
+- Process Documentation (5) — Clear history
+- Ethical Use (5) — Honest collaboration
+
+**Final Essay Quality (20 points)**
+- Content & Argumentation (8) — Substance
+- Organization (6) — Structure
+- Language & Style (6) — Polish
+
+### Scoring Levels
+
+| Level | Range | Description |
+|-------|-------|-------------|
+| Exemplary | 90-100% | Exceeds expectations |
+| Proficient | 70-89% | Meets expectations |
+| Developing | 50-69% | Approaching expectations |
+| Inadequate | 0-49% | Below expectations |
+
+---
+
+## Supported Formats
+
+### Essays
+- Plain text (`.txt`)
+- Markdown (`.md`)
+- Microsoft Word (`.docx`)
+- PDF (`.pdf`)
+
+### Chat Histories
+- **ChatGPT JSON** — Export from conversations.json
+- **LM Studio JSON** — Local model chat exports
+- **Plain Text/Markdown** — Copy-pasted conversations
+
+---
+
+## Configuration
+
+### Environment Variables
+
+Create `.env` from `env.example.txt`:
+
+```env
+# Database
+DATABASE_URL=sqlite+aiosqlite:///./data/process_analyzer.db
+
+# Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Models
+DEFAULT_ANALYSIS_MODEL=gpt-oss:latest
+DEFAULT_EMBEDDING_MODEL=bge-m3
+
+# Debug
+DEBUG=true
+```
+
+### Recommended Models
+
+**For Assessment:**
+- `gpt-oss:latest` (12.8GB) — Good balance of quality/speed
+- `qwen3:32b` (19GB) — Best reasoning capability
+- `gemma3:27b` (17GB) — Good instruction following
+
+**For Embeddings:**
+- `bge-m3` (1.2GB) — Excellent multilingual embeddings
+
+---
+
+## Development
+
+### Tech Stack
+
+**Backend:**
+- FastAPI — Async Python web framework
+- SQLAlchemy — ORM with async support
+- SQLite — Database (PostgreSQL-ready schema)
+- Ollama — Local LLM inference
+
+**Frontend:**
+- React 19 — UI framework
+- Vite 7 — Build tool
+- TailwindCSS v4 — Styling
+- TipTap — Rich text editor
+- Zustand — State management
+
+### Running Tests
+
+```bash
+# Test backend setup
+python test_setup.py
+
+# Test assessment pipeline
+python test_assessment.py
+```
+
+### Code Style
+
+- Python: Follow PEP 8
+- TypeScript: ESLint + Prettier
+- Commits: Conventional commits preferred
+
+---
 
 ## Roadmap
 
-### Phase 1: Assessment Tool (Current)
-- Analyze submitted essays + chat histories
-- Generate detailed assessments with evidence
+### Phase 1: Assessment Tool ✅
+- [x] Upload essays and chat histories
+- [x] Parse multiple file formats
+- [x] RAG pipeline for long conversations
+- [x] Assessment with evidence citations
+- [x] Basic UI
 
-### Phase 2: Writing Interface
-- Built-in editor with AI assistance
-- Real-time process capture
-- Support for local AI + commercial APIs (OpenAI, Claude)
-- Student "bring your own key" option
+### Phase 2: Writing Interface 🚧
+- [x] TipTap rich text editor
+- [x] AI provider abstraction
+- [x] Chat sidebar
+- [x] Inline editing (Cmd+K)
+- [ ] Full integration testing
+- [ ] Process capture export
 
-### Phase 3: Institutional Features
-- Batch assessment
-- Instructor dashboard
-- LMS integration
-- Research analytics
+### Phase 3: Institutional Features 📋
+- [ ] Batch assessment
+- [ ] Instructor dashboard
+- [ ] Class analytics
+- [ ] LMS integration
+- [ ] Multi-instructor support
 
-## License
+### Phase 4: Scale & Polish 📋
+- [ ] PostgreSQL migration
+- [ ] Cloud deployment option
+- [ ] Student portal
+- [ ] Research analytics
 
-MIT
+---
+
+## Philosophy & Background
+
+See `RubricDocs/AI and Writing Assignments - The New Paradigm.md` for the complete educational philosophy behind ProcessPulse.
+
+Key principles:
+1. **AI is a tool, not a threat** — Students will use AI; teach them to use it well
+2. **Process reveals understanding** — Chat histories show how students think
+3. **Iteration is learning** — Multiple drafts and refinements demonstrate growth
+4. **Transparency builds trust** — Complete histories prevent "gaming the system"
+5. **Instructors remain essential** — AI assists assessment; humans decide
+
+---
 
 ## Contributing
 
-This project is in active development. Issues and PRs welcome.
+This project is in active development. Issues and PRs welcome!
 
+### Areas Needing Help
+- Testing with different chat export formats
+- Prompt engineering for better assessments
+- UI/UX improvements
+- Documentation
+
+---
+
+## License
+
+MIT License — See [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+- Built with [FastAPI](https://fastapi.tiangolo.com/)
+- Editor powered by [TipTap](https://tiptap.dev/)
+- Local AI via [Ollama](https://ollama.ai/)
+- Styled with [TailwindCSS](https://tailwindcss.com/)
+
+---
+
+## Support
+
+- **Issues:** [GitHub Issues](https://github.com/lafintiger/processpulse/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/lafintiger/processpulse/discussions)
+
+---
+
+*ProcessPulse — Making student thinking visible in the age of AI.*
