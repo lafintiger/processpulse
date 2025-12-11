@@ -4,11 +4,12 @@ import { AssessmentResults } from './components/AssessmentResults'
 import { Header } from './components/Header'
 import { StatusBar } from './components/StatusBar'
 import { WriterPage } from './components/writer'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import type { Assessment, UploadedFiles } from './types'
 
 type AppMode = 'home' | 'analyzer' | 'writer'
 
-function App() {
+function AppContent() {
   const [mode, setMode] = useState<AppMode>('home')
   const [files, setFiles] = useState<UploadedFiles | null>(null)
   const [assessment, setAssessment] = useState<Assessment | null>(null)
@@ -240,6 +241,14 @@ function App() {
         </div>
       </footer>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   )
 }
 

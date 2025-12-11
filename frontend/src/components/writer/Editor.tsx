@@ -73,6 +73,7 @@ export function Editor({ className }: EditorProps) {
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] px-8 py-6',
+        spellcheck: 'true',  // Enable browser spell check
       },
     },
     onUpdate: ({ editor }) => {

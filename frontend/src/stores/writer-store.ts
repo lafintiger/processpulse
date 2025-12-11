@@ -197,6 +197,9 @@ interface WriterState {
   // Backend Sync Actions
   saveSessionToBackend: () => Promise<void>
   
+  // Reset Actions
+  clearCurrentSession: () => void
+  
   // Settings Actions
   updateSettings: (settings: Partial<WriterSettings>) => void
   initializeProvider: () => Promise<void>
@@ -630,6 +633,34 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
       
       exportEvents: () => {
         return get().events
+      },
+      
+      // Clear current session (start fresh)
+      clearCurrentSession: () => {
+        const { document } = get()
+        if (!document) return
+        
+        // Reset metrics
+        set({
+          events: [],
+          chatMessages: [],
+          metrics: {
+            totalCharactersTyped: 0,
+            totalCharactersPasted: 0,
+            totalCharactersCopied: 0,
+            aiRequestCount: 0,
+            aiAcceptCount: 0,
+            aiRejectCount: 0,
+            focusLostCount: 0,
+            totalFocusLostDuration: 0,
+            lastFocusLostTime: null,
+          },
+          pendingSuggestion: null,
+          selectedTextForChat: null,
+        })
+        
+        // Start new session
+        get().startSession()
       },
       
       // Save session to backend
