@@ -60,8 +60,8 @@ export function WriterPage() {
   }, [])
   
   const handleCreateDocument = () => {
-    if (!newDocTitle.trim()) return
-    createDocument(newDocTitle.trim(), newDocContext.trim() || undefined)
+    const title = newDocTitle.trim() || 'Untitled Document'
+    createDocument(title, newDocContext.trim() || undefined)
     setNewDocTitle('')
     setNewDocContext('')
     setShowNewDocModal(false)
@@ -190,8 +190,7 @@ export function WriterPage() {
                   </button>
                   <button
                     onClick={handleCreateDocument}
-                    disabled={!newDocTitle.trim()}
-                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium disabled:opacity-50"
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium"
                   >
                     Create
                   </button>
@@ -257,7 +256,7 @@ export function WriterPage() {
   
   // Main editor view
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#09090b' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#09090b', color: '#e4e4e7' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
         <div className="flex items-center gap-4">

@@ -25,7 +25,7 @@ interface EditorProps {
 
 export function Editor({ className }: EditorProps) {
   const {
-    document,
+    document: writerDocument,
     updateContent,
     captureEvent,
     openInlineEdit,
@@ -55,7 +55,7 @@ export function Editor({ className }: EditorProps) {
       }),
       CharacterCount,
     ],
-    content: document?.content || '',
+    content: writerDocument?.content || '',
     editorProps: {
       attributes: {
         class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] px-8 py-6',
@@ -91,11 +91,11 @@ export function Editor({ className }: EditorProps) {
   
   // Sync editor content with document
   useEffect(() => {
-    if (editor && document?.content !== editor.getHTML()) {
-      editor.commands.setContent(document?.content || '')
+    if (editor && writerDocument?.content !== editor.getHTML()) {
+      editor.commands.setContent(writerDocument?.content || '')
       lastContent.current = editor.getText()
     }
-  }, [editor, document?.id])
+  }, [editor, writerDocument?.id])
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -114,8 +114,8 @@ export function Editor({ className }: EditorProps) {
       }
     }
     
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    window.document.addEventListener('keydown', handleKeyDown)
+    return () => window.document.removeEventListener('keydown', handleKeyDown)
   }, [editor, openInlineEdit])
   
   // Handle paste events for capture
