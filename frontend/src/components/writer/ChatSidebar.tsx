@@ -20,11 +20,21 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     sendMessage,
     clearChat,
     providerStatus,
+    selectedTextForChat,
+    clearSelectedTextForChat,
+    pendingSuggestion,
   } = useWriterStore()
   
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  
+  // Focus input when selected text changes
+  useEffect(() => {
+    if (selectedTextForChat) {
+      inputRef.current?.focus()
+    }
+  }, [selectedTextForChat])
   
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -172,30 +182,75 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       )}
       
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-zinc-800">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about your writing..."
-            rows={2}
-            className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500"
-            disabled={isAiThinking || providerStatus !== 'connected'}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isAiThinking || providerStatus !== 'connected'}
-            className="px-4 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </div>
-        <div className="text-xs text-zinc-500 mt-2">
-          Press Enter to send, Shift+Enter for new line
+      <form onSubmit={handleSubmit} className="border-t border-zinc-800">
+        {/* Selected text indicator */}
+        {selectedTextForChat && (
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <svg className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-amber-400 font-medium mb-1">Editing selected text:</div>
+                <div className="text-sm text-amber-200/80 italic line-clamp-2">
+                  "{selectedTextForChat.text.slice(0, 100)}{selectedTextForChat.text.length > 100 ? '...' : ''}"
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={clearSelectedTextForChat}
+                className="p-1 text-amber-400/60 hover:text-amber-400 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+        
+        <div className="p-4 pt-2">
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={selectedTextForChat ? "What change would you like? (e.g., 'make it more formal')" : "Ask about your writing..."}
+              rows={2}
+              className={`flex-1 px-3 py-2 border rounded-lg text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none focus:ring-2 focus:ring-teal-500/50 ${
+                selectedTextForChat 
+                  ? 'bg-amber-500/5 border-amber-500/30 focus:border-amber-500' 
+                  : 'bg-zinc-800 border-zinc-700 focus:border-teal-500'
+              }`}
+              disabled={isAiThinking || providerStatus !== 'connected'}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isAiThinking || providerStatus !== 'connected'}
+              className={`px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                selectedTextForChat
+                  ? 'bg-amber-600 hover:bg-amber-500 text-white'
+                  : 'bg-teal-600 hover:bg-teal-500 text-white'
+              }`}
+            >
+              {selectedTextForChat ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              )}
+            </button>
+          </div>
+          <div className="text-xs text-zinc-500 mt-2">
+            {selectedTextForChat 
+              ? 'Enter to apply edit • Esc to cancel'
+              : 'Enter to send • Select text in editor to edit it'
+            }
+          </div>
         </div>
       </form>
     </div>

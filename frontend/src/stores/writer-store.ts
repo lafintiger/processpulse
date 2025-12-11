@@ -110,12 +110,23 @@ interface WriterState {
   isAiThinking: boolean
   aiError: string | null
   
-  // Inline Edit
+  // Inline Edit (Ctrl+K popup)
   inlineEditOpen: boolean
   inlineEditPosition: { from: number; to: number } | null
   inlineEditSelectedText: string
   inlineEditInstruction: string
   inlineEditSuggestion: string
+  
+  // Cursor-like inline suggestion (from chat)
+  pendingSuggestion: {
+    text: string
+    position: { from: number; to: number }
+    originalText: string
+  } | null
+  selectedTextForChat: {
+    text: string
+    position: { from: number; to: number }
+  } | null
   
   // Events
   events: EditorEvent[]
@@ -139,10 +150,18 @@ interface WriterState {
   deleteDocument: (id: string) => void
   
   // Chat Actions
-  sendMessage: (message: string, selectedText?: string) => Promise<void>
+  sendMessage: (message: string) => Promise<void>
   clearChat: () => void
   
-  // Inline Edit Actions
+  // Selection for chat
+  setSelectedTextForChat: (text: string, from: number, to: number) => void
+  clearSelectedTextForChat: () => void
+  
+  // Inline suggestion actions (Cursor-like)
+  acceptPendingSuggestion: () => void
+  rejectPendingSuggestion: () => void
+  
+  // Inline Edit Actions (Ctrl+K popup)
   openInlineEdit: (from: number, to: number, selectedText: string) => void
   closeInlineEdit: () => void
   setInlineInstruction: (instruction: string) => void
@@ -194,6 +213,8 @@ export const useWriterStore = create<WriterState>()(
       inlineEditSelectedText: '',
       inlineEditInstruction: '',
       inlineEditSuggestion: '',
+      pendingSuggestion: null,
+      selectedTextForChat: null,
       events: [],
       settings: defaultSettings,
       provider: null,
@@ -283,13 +304,15 @@ export const useWriterStore = create<WriterState>()(
       },
       
       // Chat Management
-      sendMessage: async (message, selectedText) => {
-        const { provider, chatMessages, document, settings } = get()
+      sendMessage: async (message) => {
+        const { provider, chatMessages, document, settings, selectedTextForChat } = get()
         
         if (!provider) {
           set({ aiError: 'AI provider not available' })
           return
         }
+        
+        const isEditRequest = selectedTextForChat !== null
         
         // Add user message
         const userMessage: ChatMessage = {
@@ -297,7 +320,7 @@ export const useWriterStore = create<WriterState>()(
           role: 'user',
           content: message,
           timestamp: Date.now(),
-          selectedText,
+          selectedText: selectedTextForChat?.text,
         }
         
         set({
@@ -308,18 +331,30 @@ export const useWriterStore = create<WriterState>()(
         
         get().captureEvent('ai_request', {
           content: message,
-          metadata: { selectedText, provider: settings.providerType },
+          metadata: { selectedText: selectedTextForChat?.text, provider: settings.providerType, isEdit: isEditRequest },
         })
         
         try {
-          // Build context
-          let prompt = message
-          if (selectedText) {
-            prompt = `The user selected this text: "${selectedText}"\n\nTheir question: ${message}`
-          }
-          if (document?.content) {
-            const preview = document.content.slice(0, 2000)
-            prompt = `Current document:\n---\n${preview}${document.content.length > 2000 ? '...' : ''}\n---\n\n${prompt}`
+          let prompt: string
+          let systemPrompt: string
+          
+          if (isEditRequest) {
+            // Edit mode: Ask AI to provide a replacement
+            prompt = `Selected text to edit: "${selectedTextForChat.text}"
+
+User's instruction: ${message}
+
+Provide ONLY the replacement text. Do not include explanations, quotes, or any other text. Just the revised version of the selected text.`
+            
+            systemPrompt = `You are a writing assistant. When given text to edit and an instruction, provide ONLY the revised text. Keep the same style and voice unless asked to change it. Never add explanations or quotes around your response.`
+          } else {
+            // Regular chat mode
+            prompt = message
+            if (document?.content) {
+              const preview = document.content.slice(0, 2000)
+              prompt = `Current document:\n---\n${preview}${document.content.length > 2000 ? '...' : ''}\n---\n\n${prompt}`
+            }
+            systemPrompt = `You are a helpful writing assistant. Help the student improve their writing while encouraging critical thinking. Current assignment: ${document?.assignmentContext || 'General writing'}`
           }
           
           // Stream response
@@ -327,8 +362,9 @@ export const useWriterStore = create<WriterState>()(
           const assistantMessageId = uuidv4()
           
           for await (const chunk of provider.stream(prompt, {
-            systemPrompt: `You are a helpful writing assistant. Help the student improve their writing while encouraging critical thinking. Current assignment: ${document?.assignmentContext || 'General writing'}`,
-            temperature: 0.7,
+            systemPrompt,
+            temperature: isEditRequest ? 0.5 : 0.7,
+            maxTokens: isEditRequest ? 500 : 1500,
           })) {
             fullResponse += chunk
             
@@ -345,9 +381,30 @@ export const useWriterStore = create<WriterState>()(
             }))
           }
           
+          // If this was an edit request, create a pending suggestion
+          if (isEditRequest && selectedTextForChat) {
+            // Clean up the response (remove quotes if AI added them)
+            let cleanedResponse = fullResponse.trim()
+            if (cleanedResponse.startsWith('"') && cleanedResponse.endsWith('"')) {
+              cleanedResponse = cleanedResponse.slice(1, -1)
+            }
+            if (cleanedResponse.startsWith("'") && cleanedResponse.endsWith("'")) {
+              cleanedResponse = cleanedResponse.slice(1, -1)
+            }
+            
+            set({
+              pendingSuggestion: {
+                text: cleanedResponse,
+                position: selectedTextForChat.position,
+                originalText: selectedTextForChat.text,
+              },
+              selectedTextForChat: null, // Clear selection after generating suggestion
+            })
+          }
+          
           get().captureEvent('ai_response', {
             content: fullResponse,
-            metadata: { provider: settings.providerType },
+            metadata: { provider: settings.providerType, isEdit: isEditRequest },
           })
           
         } catch (error) {
@@ -358,7 +415,37 @@ export const useWriterStore = create<WriterState>()(
       },
       
       clearChat: () => {
-        set({ chatMessages: [] })
+        set({ chatMessages: [], pendingSuggestion: null, selectedTextForChat: null })
+      },
+      
+      // Selection for chat-based editing
+      setSelectedTextForChat: (text, from, to) => {
+        set({
+          selectedTextForChat: { text, position: { from, to } }
+        })
+      },
+      
+      clearSelectedTextForChat: () => {
+        set({ selectedTextForChat: null })
+      },
+      
+      // Accept/reject pending suggestion (Cursor-like)
+      acceptPendingSuggestion: () => {
+        const { pendingSuggestion } = get()
+        if (pendingSuggestion) {
+          get().captureEvent('ai_accept', {
+            content: pendingSuggestion.text,
+            metadata: { originalText: pendingSuggestion.originalText, type: 'chat_edit' },
+          })
+        }
+        set({ pendingSuggestion: null })
+      },
+      
+      rejectPendingSuggestion: () => {
+        get().captureEvent('ai_reject', {
+          metadata: { type: 'chat_edit' },
+        })
+        set({ pendingSuggestion: null })
       },
       
       // Inline Edit

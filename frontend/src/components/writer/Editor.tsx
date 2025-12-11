@@ -31,6 +31,11 @@ export function Editor({ className }: EditorProps) {
     openInlineEdit,
     inlineEditOpen,
     settings,
+    setSelectedTextForChat,
+    selectedTextForChat,
+    pendingSuggestion,
+    acceptPendingSuggestion,
+    rejectPendingSuggestion,
   } = useWriterStore()
   
   const lastContent = useRef('')
@@ -81,11 +86,16 @@ export function Editor({ className }: EditorProps) {
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection
       if (from !== to) {
+        const selectedText = editor.state.doc.textBetween(from, to)
         captureEvent('text_select', {
           position: { from, to },
-          content: editor.state.doc.textBetween(from, to),
+          content: selectedText,
         })
+        // Set selected text for chat-based editing
+        setSelectedTextForChat(selectedText, from, to)
       }
+      // Note: We don't clear selection on deselect to allow user to type in chat
+      // User can clear manually or it clears when they send the message
     },
   })
   
@@ -102,7 +112,21 @@ export function Editor({ className }: EditorProps) {
     if (!editor) return
     
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K for inline edit
+      // Handle pending suggestion shortcuts
+      if (pendingSuggestion) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          handleAcceptPendingSuggestion()
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          rejectPendingSuggestion()
+          return
+        }
+      }
+      
+      // Cmd+K for inline edit popup
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         
@@ -116,7 +140,7 @@ export function Editor({ className }: EditorProps) {
     
     window.document.addEventListener('keydown', handleKeyDown)
     return () => window.document.removeEventListener('keydown', handleKeyDown)
-  }, [editor, openInlineEdit])
+  }, [editor, openInlineEdit, pendingSuggestion, handleAcceptPendingSuggestion, rejectPendingSuggestion])
   
   // Handle paste events for capture
   useEffect(() => {
@@ -130,7 +154,7 @@ export function Editor({ className }: EditorProps) {
     return () => editor.view.dom.removeEventListener('paste', handlePaste)
   }, [editor, captureEvent])
   
-  // Apply inline edit suggestion
+  // Apply inline edit suggestion (for Ctrl+K popup)
   const applyInlineSuggestion = useCallback((suggestion: string, from: number, to: number) => {
     if (!editor) return
     
@@ -142,6 +166,23 @@ export function Editor({ className }: EditorProps) {
       .insertContent(suggestion)
       .run()
   }, [editor])
+  
+  // Apply pending suggestion from chat (Cursor-like)
+  const handleAcceptPendingSuggestion = useCallback(() => {
+    if (!editor || !pendingSuggestion) return
+    
+    const { text, position } = pendingSuggestion
+    
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: position.from, to: position.to })
+      .deleteSelection()
+      .insertContent(text)
+      .run()
+    
+    acceptPendingSuggestion()
+  }, [editor, pendingSuggestion, acceptPendingSuggestion])
   
   if (!editor) {
     return (
@@ -163,6 +204,50 @@ export function Editor({ className }: EditorProps) {
     <div className={`relative ${className || ''}`}>
       {/* Toolbar */}
       <EditorToolbar editor={editor} />
+      
+      {/* Pending Suggestion Bar */}
+      {pendingSuggestion && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg mx-2 mt-2 overflow-hidden animate-fade-in">
+          <div className="px-4 py-2 border-b border-amber-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span className="text-sm font-medium text-amber-300">AI Suggestion</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={rejectPendingSuggestion}
+                className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                Reject
+              </button>
+              <button
+                onClick={handleAcceptPendingSuggestion}
+                className="px-3 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors flex items-center gap-1"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Accept
+              </button>
+            </div>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-rose-400 font-medium w-16 flex-shrink-0 pt-0.5">Original:</span>
+              <div className="text-sm text-rose-300/70 line-through">{pendingSuggestion.originalText}</div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-emerald-400 font-medium w-16 flex-shrink-0 pt-0.5">Replace:</span>
+              <div className="text-sm text-emerald-300">{pendingSuggestion.text}</div>
+            </div>
+          </div>
+          <div className="px-4 py-2 bg-zinc-800/50 text-xs text-zinc-500">
+            <kbd className="px-1 bg-zinc-700 rounded">Enter</kbd> to accept · <kbd className="px-1 bg-zinc-700 rounded">Esc</kbd> to reject
+          </div>
+        </div>
+      )}
       
       {/* Editor Content */}
       <div className="bg-zinc-900/50 rounded-b-xl border border-t-0 border-zinc-700/50 min-h-[500px]">
