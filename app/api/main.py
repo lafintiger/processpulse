@@ -58,13 +58,14 @@ def create_app() -> FastAPI:
     )
     
     # Register routers
-    from app.api.routes import health, models, upload, rubric, assessment
+    from app.api.routes import health, models, upload, rubric, assessment, sessions
     
     application.include_router(health.router, tags=["Health"])
     application.include_router(models.router, prefix="/api/models", tags=["Models"])
     application.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
     application.include_router(rubric.router, prefix="/api/rubric", tags=["Rubric"])
     application.include_router(assessment.router, prefix="/api/assessment", tags=["Assessment"])
+    application.include_router(sessions.router, tags=["Sessions"])
     
     return application
 

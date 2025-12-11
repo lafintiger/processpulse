@@ -332,6 +332,63 @@ class AuthenticityFlag(Base):
 
 
 # =============================================================================
+# WRITING SESSION MODELS (for Writer interface)
+# =============================================================================
+
+class WritingSession(Base):
+    """
+    A writing session from the ProcessPulse Writer interface.
+    Contains the document, chat history, and all captured events.
+    """
+    __tablename__ = "writing_sessions"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    session_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)  # From frontend
+    
+    # Document info
+    document_title: Mapped[str] = mapped_column(String(255), nullable=False)
+    document_content: Mapped[str] = mapped_column(Text, nullable=False)
+    assignment_context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    word_count: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Session timing (Unix milliseconds from frontend)
+    session_start_time: Mapped[int] = mapped_column(Integer, nullable=False)  # ms timestamp
+    session_end_time: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # ms timestamp
+    
+    # Raw data (JSON)
+    events_json: Mapped[str] = mapped_column(Text, nullable=False)  # All captured events
+    chat_messages_json: Mapped[str] = mapped_column(Text, nullable=False)  # Chat history
+    
+    # Computed stats
+    total_events: Mapped[int] = mapped_column(Integer, default=0)
+    ai_request_count: Mapped[int] = mapped_column(Integer, default=0)
+    ai_accept_count: Mapped[int] = mapped_column(Integer, default=0)
+    ai_reject_count: Mapped[int] = mapped_column(Integer, default=0)
+    text_insert_count: Mapped[int] = mapped_column(Integer, default=0)
+    text_delete_count: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # AI provider used
+    ai_provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    ai_model: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    
+    # Status
+    status: Mapped[str] = mapped_column(String(50), default="active")  # active, completed, exported
+    
+    # Link to submission (optional - when session is used for assessment)
+    submission_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("submissions.id"), nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[str] = mapped_column(String(50), default=utc_now)
+    updated_at: Mapped[str] = mapped_column(String(50), default=utc_now, onupdate=utc_now)
+    
+    # Indexes
+    __table_args__ = (
+        Index("ix_writing_sessions_session_id", "session_id"),
+        Index("ix_writing_sessions_status", "status"),
+    )
+
+
+# =============================================================================
 # PROMPT MANAGEMENT
 # =============================================================================
 
@@ -364,4 +421,5 @@ class Prompt(Base):
         Index("ix_prompts_type_version", "prompt_type", "version"),
         Index("ix_prompts_active", "is_active"),
     )
+
 

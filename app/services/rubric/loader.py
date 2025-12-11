@@ -506,3 +506,4 @@ def create_default_rubric() -> RubricData:
         ],
     )
 
+

@@ -122,3 +122,4 @@ async def test_model(model_name: str):
             detail=f"Model test failed: {str(e)}"
         )
 
+

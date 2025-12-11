@@ -20,7 +20,9 @@ export type EventType =
   | 'session_end'
   | 'text_insert'
   | 'text_delete'
-  | 'text_paste'
+  | 'text_paste'        // Pasting from clipboard
+  | 'text_copy'         // Copying to clipboard (potential external AI use)
+  | 'text_cut'          // Cutting text
   | 'text_select'
   | 'ai_request'
   | 'ai_response'
@@ -30,6 +32,8 @@ export type EventType =
   | 'document_save'
   | 'undo'
   | 'redo'
+  | 'focus_lost'        // Window/tab lost focus (might be using external tools)
+  | 'focus_gained'      // Window/tab regained focus
 
 export interface EditorEvent {
   id: string
@@ -38,9 +42,23 @@ export interface EditorEvent {
   eventType: EventType
   position?: { from: number; to: number }
   content?: string
+  contentLength?: number  // For paste tracking without storing content
   aiProvider?: string
   promptTokens?: number
   metadata?: Record<string, unknown>
+}
+
+// Session metrics for academic integrity analysis
+export interface SessionMetrics {
+  totalCharactersTyped: number      // Characters typed by student
+  totalCharactersPasted: number     // Characters pasted from clipboard
+  totalCharactersCopied: number     // Characters copied (potential external AI)
+  aiRequestCount: number
+  aiAcceptCount: number
+  aiRejectCount: number
+  focusLostCount: number            // Times window lost focus
+  totalFocusLostDuration: number    // ms spent outside the app
+  lastFocusLostTime: number | null  // For tracking duration
 }
 
 // ============================================
@@ -131,6 +149,9 @@ interface WriterState {
   // Events
   events: EditorEvent[]
   
+  // Session Metrics (for academic integrity)
+  metrics: SessionMetrics
+  
   // Settings
   settings: WriterSettings
   
@@ -172,6 +193,9 @@ interface WriterState {
   // Event Capture Actions
   captureEvent: (type: EventType, data?: Partial<EditorEvent>) => void
   exportEvents: () => EditorEvent[]
+  
+  // Backend Sync Actions
+  saveSessionToBackend: () => Promise<void>
   
   // Settings Actions
   updateSettings: (settings: Partial<WriterSettings>) => void
@@ -216,6 +240,17 @@ export const useWriterStore = create<WriterState>()(
       pendingSuggestion: null,
       selectedTextForChat: null,
       events: [],
+      metrics: {
+        totalCharactersTyped: 0,
+        totalCharactersPasted: 0,
+        totalCharactersCopied: 0,
+        aiRequestCount: 0,
+        aiAcceptCount: 0,
+        aiRejectCount: 0,
+        focusLostCount: 0,
+        totalFocusLostDuration: 0,
+        lastFocusLostTime: null,
+      },
       settings: defaultSettings,
       provider: null,
       providerStatus: 'checking',
@@ -232,6 +267,7 @@ export const useWriterStore = create<WriterState>()(
       endSession: () => {
         get().captureEvent('session_end')
         get().saveDocument()
+        get().saveSessionToBackend()  // Save to backend on session end
       },
       
       // Document Management
@@ -536,9 +572,9 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
         get().closeInlineEdit()
       },
       
-      // Event Capture
+      // Event Capture with Metrics Tracking
       captureEvent: (type, data) => {
-        const { sessionId, settings } = get()
+        const { sessionId, settings, metrics } = get()
         
         if (!settings.captureEvents) return
         
@@ -550,13 +586,98 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
           ...data,
         }
         
+        // Update metrics based on event type
+        const newMetrics = { ...metrics }
+        const contentLength = data?.contentLength || data?.content?.length || 0
+        
+        switch (type) {
+          case 'text_insert':
+            newMetrics.totalCharactersTyped += contentLength
+            break
+          case 'text_paste':
+            newMetrics.totalCharactersPasted += contentLength
+            break
+          case 'text_copy':
+          case 'text_cut':
+            newMetrics.totalCharactersCopied += contentLength
+            break
+          case 'ai_request':
+            newMetrics.aiRequestCount++
+            break
+          case 'ai_accept':
+            newMetrics.aiAcceptCount++
+            break
+          case 'ai_reject':
+            newMetrics.aiRejectCount++
+            break
+          case 'focus_lost':
+            newMetrics.focusLostCount++
+            newMetrics.lastFocusLostTime = Date.now()
+            break
+          case 'focus_gained':
+            if (newMetrics.lastFocusLostTime) {
+              newMetrics.totalFocusLostDuration += Date.now() - newMetrics.lastFocusLostTime
+              newMetrics.lastFocusLostTime = null
+            }
+            break
+        }
+        
         set(state => ({
           events: [...state.events, event],
+          metrics: newMetrics,
         }))
       },
       
       exportEvents: () => {
         return get().events
+      },
+      
+      // Save session to backend
+      saveSessionToBackend: async () => {
+        const { sessionId, sessionStartTime, document, events, chatMessages, settings } = get()
+        
+        if (!document || !sessionId) {
+          console.warn('No session to save')
+          return
+        }
+        
+        try {
+          const response = await fetch('http://localhost:8000/api/sessions/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              sessionStartTime,
+              sessionEndTime: Date.now(),
+              document: {
+                id: document.id,
+                title: document.title,
+                content: document.content,
+                wordCount: document.wordCount,
+                assignmentContext: document.assignmentContext,
+                createdAt: document.createdAt,
+                updatedAt: document.updatedAt,
+              },
+              events,
+              chatMessages,
+              settings: {
+                providerType: settings.providerType,
+                ollamaModel: settings.ollamaModel,
+                openaiModel: settings.openaiModel,
+                anthropicModel: settings.anthropicModel,
+              },
+            }),
+          })
+          
+          if (!response.ok) {
+            throw new Error(`Failed to save session: ${response.statusText}`)
+          }
+          
+          const result = await response.json()
+          console.log('Session saved:', result)
+        } catch (error) {
+          console.error('Failed to save session to backend:', error)
+        }
       },
       
       // Settings

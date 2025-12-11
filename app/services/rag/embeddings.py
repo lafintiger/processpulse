@@ -195,3 +195,4 @@ async def embed_query(
     async with EmbeddingService(model=model) as service:
         return await service.embed_text(query)
 
+

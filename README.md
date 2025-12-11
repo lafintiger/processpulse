@@ -36,14 +36,24 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 - Authenticity flags (suspicious patterns)
 - Export assessment reports
 
-### Writer (Writing Interface) 🚧 *In Development*
+### Writer (Writing Interface) ✅
 - Rich text editor (TipTap) with formatting toolbar
-- AI chat sidebar for brainstorming
+- AI chat sidebar with streaming responses
 - Inline editing with Cmd/Ctrl+K
+- **Right-click context menu** → Edit with AI, Copy, Cut
+- **Find & Replace** (Ctrl+F, Ctrl+H)
+- **Insert links** via toolbar
 - Support for local AI (Ollama) or commercial APIs (OpenAI, Claude)
 - "Bring your own API key" for students
 - Automatic process capture for assessment
-- Event timestamps for every action
+- Event timestamps (Unix ms) for every action
+
+### Academic Integrity Tracking ✅
+- **Paste detection** — Tracks characters pasted from clipboard
+- **Copy tracking** — Detects text copied out (potential external AI use)
+- **Focus monitoring** — Tracks when user leaves the app
+- **Session metrics** — Typed vs pasted ratio, AI acceptance rate
+- **Backend storage** — All sessions saved with full event history
 
 ---
 
@@ -157,6 +167,15 @@ Process-Analyzer/
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/rubric` | GET | Get assessment rubric structure |
+
+### Writing Sessions (NEW)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sessions/save` | POST | Save/update writing session |
+| `/api/sessions/list` | GET | List all saved sessions |
+| `/api/sessions/{id}` | GET | Get full session details |
+| `/api/sessions/{id}/export` | POST | Export for assessment |
 
 ---
 
@@ -295,13 +314,20 @@ python test_assessment.py
 - [x] Assessment with evidence citations
 - [x] Basic UI
 
-### Phase 2: Writing Interface 🚧
+### Phase 2: Writing Interface ✅
 - [x] TipTap rich text editor
 - [x] AI provider abstraction
-- [x] Chat sidebar
+- [x] Chat sidebar with streaming
 - [x] Inline editing (Cmd+K)
-- [ ] Full integration testing
-- [ ] Process capture export
+- [x] Right-click context menu
+- [x] Find & Replace (Ctrl+F/H)
+- [x] Link insertion
+- [x] Paste/copy/focus tracking
+- [x] Session metrics
+- [x] Backend session storage
+- [x] Process capture export
+- [ ] Export to PDF/DOCX
+- [ ] Spell check integration
 
 ### Phase 3: Institutional Features 📋
 - [ ] Batch assessment

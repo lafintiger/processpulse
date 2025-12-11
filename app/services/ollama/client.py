@@ -338,3 +338,4 @@ async def generate_embeddings(
     async with OllamaClient(base_url=base_url) as client:
         return await client.embed(texts, model=model)
 
+

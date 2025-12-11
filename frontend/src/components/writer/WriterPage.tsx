@@ -27,6 +27,7 @@ export function WriterPage() {
     providerStatus,
     settings,
     events,
+    saveSessionToBackend,
   } = useWriterStore()
   
   const [showSettings, setShowSettings] = useState(false)
@@ -67,9 +68,13 @@ export function WriterPage() {
     setShowNewDocModal(false)
   }
   
-  const handleExportSession = () => {
+  const handleExportSession = async () => {
     if (!document) return
     
+    // Save to backend first
+    await saveSessionToBackend()
+    
+    // Then export locally as backup
     const exportData = {
       document: {
         id: document.id,

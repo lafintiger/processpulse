@@ -342,3 +342,4 @@ def create_query_for_criterion(criterion_name: str) -> str:
         f"Evidence related to: {criterion_name}"
     )
 
+
