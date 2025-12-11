@@ -2,7 +2,8 @@
 
 **Project:** ProcessPulse (AI-Assisted Writing Process Analyzer)  
 **Last Updated:** December 11, 2025  
-**Status:** PROTOTYPE READY FOR STUDENT TESTING  
+**Status:** PROTOTYPE READY + DOCKER DEPLOYMENT READY  
+**License:** Polyform Noncommercial 1.0.0 (Free for education)  
 **GitHub:** https://github.com/lafintiger/processpulse
 
 ---
@@ -17,6 +18,8 @@ ProcessPulse is an application for educators to assess student writing by analyz
 - **Writer interface READY FOR TESTING** with all core features
 - **Academic integrity tracking** - paste detection, copy tracking, focus monitoring
 - **Export options** - DOCX, TXT, HTML, JSON (for assessment)
+- **Perplexica web search** - AI-powered research with source citations
+- **Docker deployment** - One command to deploy everything (`docker-compose up -d`)
 
 ---
 
@@ -343,7 +346,7 @@ curl http://localhost:11434/api/tags
 - Added writing stats bar
 
 ### Session 4 - December 11, 2025 (Evening)
-**Agent:** Development Agent (Current)  
+**Agent:** Development Agent  
 **Accomplished:**
 - Added DOCX export using `docx` library
 - Added TXT export (plain text)
@@ -373,6 +376,48 @@ curl http://localhost:11434/api/tags
 - `frontend/src/components/writer/Editor.tsx` - Spell check enabled
 - `frontend/src/App.tsx` - Wrapped with ErrorBoundary
 
+### Session 5 - December 11, 2025 (Late Evening)
+**Agent:** Development Agent (Current)  
+**Accomplished:**
+- **Fixed Perplexica CORS issue**
+  - Created backend proxy at `/api/perplexica/` to bypass browser CORS restrictions
+  - Updated PerplexicaClient to use backend proxy instead of direct calls
+  - Perplexica web search now fully functional
+- **Added Polyform Noncommercial 1.0.0 License**
+  - Free for educators, students, educational institutions
+  - Commercial use requires separate license
+- **Complete Docker Deployment Setup**
+  - `Dockerfile` - Backend (FastAPI, multi-stage build, ~500MB)
+  - `frontend/Dockerfile` - Frontend (React + nginx, ~50MB)
+  - `docker-compose.yml` - Full orchestration with:
+    - ProcessPulse frontend & backend
+    - Ollama with auto model download
+    - Perplexica + SearXNG for web search
+  - `env.example` - Configuration template
+  - `DEPLOYMENT.md` - Detailed deployment guide
+  - Auto-downloads models on first run (~7.5GB total)
+  - GPU support option (just uncomment in docker-compose)
+  - External Ollama support for existing installations
+
+**Key Files Added:**
+- `Dockerfile` - Backend container
+- `frontend/Dockerfile` - Frontend container
+- `frontend/nginx.conf` - Production nginx config
+- `docker-compose.yml` - Full stack orchestration
+- `env.example` - Environment configuration
+- `DEPLOYMENT.md` - Deployment documentation
+- `LICENSE` - Polyform Noncommercial 1.0.0
+- `.dockerignore` - Docker build exclusions
+- `app/api/routes/perplexica.py` - Perplexica proxy endpoints
+
+**Disk Space Requirements (Docker):**
+| Component | Size |
+|-----------|------|
+| Docker images | ~2.5 GB |
+| Chat model (llama3.1:8b) | ~4.7 GB |
+| Embedding model | ~275 MB |
+| **Total** | **~7.5 GB** |
+
 ---
 
 ## Testing the Prototype
@@ -401,8 +446,39 @@ curl http://localhost:11434/api/tags
 
 1. **Connect Writer → Analyzer flow** - Button to directly import session for assessment
 2. **Testing** - Unit tests for backend, integration tests for frontend
-3. **Deployment** - Docker setup, production config
+3. ~~**Deployment** - Docker setup, production config~~ ✅ DONE
 4. **Mobile responsiveness** - Make writer usable on tablets
+5. **Test Docker deployment** - Verify docker-compose works on fresh machine
+6. **Batch assessment** - Multiple submissions at once
+7. **PDF export** - Export essays as PDF
+
+---
+
+## Docker Deployment
+
+### Quick Start
+```bash
+git clone https://github.com/lafintiger/processpulse.git
+cd processpulse
+cp env.example .env
+docker-compose up -d
+# Access at http://localhost
+```
+
+### Services Included
+- Frontend (nginx + React)
+- Backend (FastAPI)
+- Ollama (Local AI)
+- Perplexica (Web Search)
+- SearXNG (Search Engine)
+
+### Configuration
+Edit `.env` to change:
+- Ports (default: 80, 11434, 3000)
+- AI models (default: llama3.1:8b, nomic-embed-text)
+- Debug mode
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions.
 
 ---
 

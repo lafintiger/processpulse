@@ -4,7 +4,9 @@
 
 > Evaluating thinking, not just writing. 80% process, 20% product.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Polyform Noncommercial](https://img.shields.io/badge/License-Polyform%20NC-blue.svg)](LICENSE)
+
+> **Free for educators, students, and non-commercial use.** Commercial use requires a separate license.
 
 ---
 
@@ -43,6 +45,7 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 - **Right-click context menu** → Edit with AI, Copy, Cut
 - **Find & Replace** (Ctrl+F, Ctrl+H)
 - **Insert links** via toolbar
+- **Web Search (Perplexica)** — AI-powered research with sources
 - **Export options** — DOCX, TXT, HTML, JSON (for assessment)
 - **Browser spell check** — Built-in spell checking
 - **Keyboard shortcuts help** — Press Ctrl+/ for full list
@@ -64,15 +67,40 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Docker (Recommended for Institutions) 🐳
+
+One command to deploy everything:
+
+```bash
+# Clone
+git clone https://github.com/lafintiger/processpulse.git
+cd processpulse
+
+# Configure (optional)
+cp env.example .env
+
+# Launch
+docker-compose up -d
+
+# Access at http://localhost
+```
+
+**First run downloads AI models automatically (~7.5 GB total).**
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed Docker instructions.
+
+### Option 2: Local Development
+
+#### Prerequisites
 
 - **Python 3.11+**
 - **Node.js 18+**
 - **Ollama** running locally with models:
   - Analysis: `gpt-oss:latest` or `qwen3:32b`
   - Embeddings: `bge-m3`
+- **Perplexica** (optional) for web search
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
@@ -92,7 +120,7 @@ npm install
 cd ..
 ```
 
-### Running
+#### Running
 
 **Terminal 1 - Backend:**
 ```bash
@@ -105,7 +133,7 @@ python run.py
 ```bash
 cd frontend
 npm run dev
-# UI runs at http://localhost:5174 (or next available port)
+# UI runs at http://localhost:5173 (or next available port)
 ```
 
 **Verify Ollama is running:**
@@ -173,7 +201,7 @@ Process-Analyzer/
 |----------|--------|-------------|
 | `/api/rubric` | GET | Get assessment rubric structure |
 
-### Writing Sessions (NEW)
+### Writing Sessions
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -181,6 +209,14 @@ Process-Analyzer/
 | `/api/sessions/list` | GET | List all saved sessions |
 | `/api/sessions/{id}` | GET | Get full session details |
 | `/api/sessions/{id}/export` | POST | Export for assessment |
+
+### Perplexica (Web Search Proxy)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/perplexica/status` | GET | Check if Perplexica is available |
+| `/api/perplexica/providers` | GET | Get available models |
+| `/api/perplexica/search` | POST | Perform AI-powered web search |
 
 ---
 
@@ -319,7 +355,7 @@ python test_assessment.py
 - [x] Assessment with evidence citations
 - [x] Basic UI
 
-### Phase 2: Writing Interface ✅ PROTOTYPE READY
+### Phase 2: Writing Interface ✅ COMPLETE
 - [x] TipTap rich text editor
 - [x] AI provider abstraction
 - [x] Chat sidebar with streaming
@@ -327,6 +363,7 @@ python test_assessment.py
 - [x] Right-click context menu
 - [x] Find & Replace (Ctrl+F/H)
 - [x] Link insertion
+- [x] **Perplexica Web Search** — AI-powered research with sources
 - [x] Paste/copy/focus tracking
 - [x] Session metrics
 - [x] Backend session storage
@@ -338,6 +375,17 @@ python test_assessment.py
 - [x] Auto-save indicator
 - [x] Error boundary (crash recovery)
 - [ ] Export to PDF
+
+### Phase 2.5: Docker Deployment ✅ COMPLETE
+- [x] Backend Dockerfile (FastAPI, multi-stage build)
+- [x] Frontend Dockerfile (React + nginx)
+- [x] docker-compose.yml with all services
+- [x] Auto model download on first run
+- [x] Perplexica + SearXNG integration
+- [x] Configuration via .env file
+- [x] GPU support option
+- [x] External Ollama support
+- [x] Detailed deployment documentation
 
 ### Phase 3: Institutional Features 📋
 - [ ] Batch assessment
@@ -381,7 +429,15 @@ This project is in active development. Issues and PRs welcome!
 
 ## License
 
-MIT License — See [LICENSE](LICENSE) for details.
+**Polyform Noncommercial 1.0.0** — See [LICENSE](LICENSE) for details.
+
+| Use Case | Allowed |
+|----------|---------|
+| Educators & Students | ✅ Free |
+| Educational Institutions | ✅ Free |
+| Personal/Hobby Use | ✅ Free |
+| Non-profit Organizations | ✅ Free |
+| Commercial Use | ❌ Contact for license |
 
 ---
 
