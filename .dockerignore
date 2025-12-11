@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# Node (frontend has its own)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data (will be in volumes)
+data/
+*.db
+
+# Samples (not needed in production)
+Samples/
+
+# Documentation (optional)
+*.md
+!README.md
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker/
+
+# Environment
+.env
+env.example
+
