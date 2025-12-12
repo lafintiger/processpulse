@@ -5,9 +5,10 @@ import { Header } from './components/Header'
 import { StatusBar } from './components/StatusBar'
 import { WriterPage } from './components/writer'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { SubmissionsDashboard } from './components/SubmissionsDashboard'
 import type { Assessment, UploadedFiles } from './types'
 
-type AppMode = 'home' | 'analyzer' | 'writer'
+type AppMode = 'home' | 'analyzer' | 'writer' | 'submissions'
 
 function AppContent() {
   const [mode, setMode] = useState<AppMode>('home')
@@ -20,6 +21,11 @@ function AppContent() {
   // Show Writer page
   if (mode === 'writer') {
     return <WriterPage />
+  }
+  
+  // Show Submissions dashboard
+  if (mode === 'submissions') {
+    return <SubmissionsDashboard onBack={() => setMode('home')} />
   }
 
   const handleFilesUploaded = (uploadedFiles: UploadedFiles) => {
@@ -87,54 +93,76 @@ function AppContent() {
           </div>
           
           {/* Mode Selection */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {/* Writer Mode */}
             <button
               onClick={() => setMode('writer')}
-              className="group p-8 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-teal-500/50 transition-all text-left hover:shadow-xl hover:shadow-teal-500/5"
+              className="group p-6 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-teal-500/50 transition-all text-left hover:shadow-xl hover:shadow-teal-500/5"
             >
-              <div className="w-14 h-14 rounded-xl bg-teal-500/10 flex items-center justify-center mb-4 group-hover:bg-teal-500/20 transition-colors">
-                <svg className="w-7 h-7 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl bg-teal-500/10 flex items-center justify-center mb-4 group-hover:bg-teal-500/20 transition-colors">
+                <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Writer</h2>
-              <p className="text-zinc-400 mb-4">
-                AI-assisted writing with full process capture. For students.
+              <h2 className="text-lg font-semibold text-zinc-100 mb-2">Writer</h2>
+              <p className="text-zinc-400 text-sm mb-3">
+                AI-assisted writing with process capture. For students.
               </p>
-              <ul className="text-sm text-zinc-500 space-y-1">
-                <li>• Rich text editor with AI assistance</li>
-                <li>• Inline editing with Cmd+K</li>
-                <li>• Chat sidebar for brainstorming</li>
-                <li>• Automatic process capture</li>
+              <ul className="text-xs text-zinc-500 space-y-1">
+                <li>• Rich text editor with AI</li>
+                <li>• Chat sidebar for help</li>
+                <li>• Auto process capture</li>
               </ul>
-              <div className="mt-6 text-teal-400 font-medium group-hover:translate-x-1 transition-transform">
+              <div className="mt-4 text-teal-400 text-sm font-medium group-hover:translate-x-1 transition-transform">
                 Start Writing →
+              </div>
+            </button>
+            
+            {/* Submissions Dashboard */}
+            <button
+              onClick={() => setMode('submissions')}
+              className="group p-6 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-emerald-500/50 transition-all text-left hover:shadow-xl hover:shadow-emerald-500/5"
+            >
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-4 group-hover:bg-emerald-500/20 transition-colors">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-zinc-100 mb-2">Submissions</h2>
+              <p className="text-zinc-400 text-sm mb-3">
+                View & download student work. For instructors.
+              </p>
+              <ul className="text-xs text-zinc-500 space-y-1">
+                <li>• All student submissions</li>
+                <li>• Download MD & JSON</li>
+                <li>• Review before grading</li>
+              </ul>
+              <div className="mt-4 text-emerald-400 text-sm font-medium group-hover:translate-x-1 transition-transform">
+                View Submissions →
               </div>
             </button>
             
             {/* Analyzer Mode */}
             <button
               onClick={() => setMode('analyzer')}
-              className="group p-8 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-amber-500/50 transition-all text-left hover:shadow-xl hover:shadow-amber-500/5"
+              className="group p-6 bg-zinc-900 border border-zinc-800 rounded-2xl hover:border-amber-500/50 transition-all text-left hover:shadow-xl hover:shadow-amber-500/5"
             >
-              <div className="w-14 h-14 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4 group-hover:bg-amber-500/20 transition-colors">
-                <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4 group-hover:bg-amber-500/20 transition-colors">
+                <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-zinc-100 mb-2">Analyzer</h2>
-              <p className="text-zinc-400 mb-4">
-                Assess submitted essays and chat histories. For educators.
+              <h2 className="text-lg font-semibold text-zinc-100 mb-2">Analyzer</h2>
+              <p className="text-zinc-400 text-sm mb-3">
+                Assess essays with AI analysis. For educators.
               </p>
-              <ul className="text-sm text-zinc-500 space-y-1">
-                <li>• Upload essay + chat history</li>
-                <li>• 11-criterion rubric assessment</li>
+              <ul className="text-xs text-zinc-500 space-y-1">
+                <li>• 11-criterion rubric</li>
                 <li>• Evidence-based scoring</li>
                 <li>• Authenticity analysis</li>
               </ul>
-              <div className="mt-6 text-amber-400 font-medium group-hover:translate-x-1 transition-transform">
-                Analyze Submission →
+              <div className="mt-4 text-amber-400 text-sm font-medium group-hover:translate-x-1 transition-transform">
+                Analyze →
               </div>
             </button>
           </div>

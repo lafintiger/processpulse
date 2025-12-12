@@ -78,6 +78,12 @@ export interface ChatMessage {
 // Document Types
 // ============================================
 
+export interface StudentInfo {
+  name: string
+  studentId?: string
+  email?: string
+}
+
 export interface Document {
   id: string
   title: string
@@ -86,6 +92,7 @@ export interface Document {
   updatedAt: number
   wordCount: number
   assignmentContext?: string
+  student?: StudentInfo
 }
 
 // ============================================
@@ -175,7 +182,7 @@ interface WriterState {
   endSession: () => void
   
   // Document Actions
-  createDocument: (title: string, assignmentContext?: string) => Document
+  createDocument: (title: string, assignmentContext?: string, student?: StudentInfo) => Document
   loadDocument: (id: string) => void
   saveDocument: () => void
   updateContent: (content: string) => void
@@ -207,6 +214,10 @@ interface WriterState {
   
   // Backend Sync Actions
   saveSessionToBackend: () => Promise<void>
+  saveDraftToServer: () => Promise<void>
+  loadDraftFromServer: (studentName: string, documentTitle: string) => Promise<boolean>
+  listStudentDrafts: (studentName: string) => Promise<Array<{ id: string; documentTitle: string; wordCount: number; lastSaved: string }>>
+  submitForAssessment: () => Promise<{ success: boolean; message: string; submissionId?: string }>
   
   // Reset Actions
   clearCurrentSession: () => void
@@ -306,7 +317,7 @@ export const useWriterStore = create<WriterState>()(
       },
       
       // Document Management
-      createDocument: (title, assignmentContext) => {
+      createDocument: (title, assignmentContext, student) => {
         const doc: Document = {
           id: uuidv4(),
           title,
@@ -315,6 +326,7 @@ export const useWriterStore = create<WriterState>()(
           updatedAt: Date.now(),
           wordCount: 0,
           assignmentContext,
+          student,
         }
         
         set(state => ({
@@ -706,7 +718,7 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
         }
         
         try {
-          const response = await fetch('http://localhost:8000/api/sessions/save', {
+          const response = await fetch('/api/sessions/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -741,6 +753,170 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
           console.log('Session saved:', result)
         } catch (error) {
           console.error('Failed to save session to backend:', error)
+        }
+      },
+      
+      // Save draft to server (auto-save for resume capability)
+      saveDraftToServer: async () => {
+        const { sessionId, sessionStartTime, document, events, chatMessages, settings } = get()
+        
+        if (!document || !sessionId || !document.student?.name) {
+          return
+        }
+        
+        try {
+          await fetch('/api/submissions/draft/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student: document.student,
+              sessionId,
+              sessionStartTime,
+              document: {
+                title: document.title,
+                content: document.content,
+                wordCount: document.wordCount,
+                assignmentContext: document.assignmentContext,
+              },
+              events,
+              chatMessages,
+              settings: {
+                providerType: settings.providerType,
+                ollamaModel: settings.ollamaModel,
+              },
+            }),
+          })
+        } catch (error) {
+          console.error('Failed to save draft to server:', error)
+        }
+      },
+      
+      // Load a draft from the server (for resuming work)
+      loadDraftFromServer: async (studentName: string, documentTitle: string) => {
+        try {
+          const response = await fetch(`/api/submissions/draft/${encodeURIComponent(studentName)}/${encodeURIComponent(documentTitle)}`)
+          
+          if (!response.ok) {
+            return false
+          }
+          
+          const draft = await response.json()
+          
+          // Restore document
+          const doc: Document = {
+            id: draft.sessionId || uuidv4(),
+            title: draft.document.title,
+            content: draft.document.content,
+            wordCount: draft.document.wordCount,
+            assignmentContext: draft.document.assignmentContext,
+            createdAt: draft.sessionStartTime,
+            updatedAt: Date.now(),
+            student: draft.student,
+          }
+          
+          // Restore chat messages
+          const chatMessages = (draft.chatMessages || []).map((m: ChatMessage) => ({
+            ...m,
+            timestamp: m.timestamp || Date.now(),
+          }))
+          
+          // Restore events  
+          const events = draft.events || []
+          
+          set({
+            document: doc,
+            documents: [...get().documents.filter(d => d.id !== doc.id), doc],
+            chatMessages,
+            events,
+            sessionId: draft.sessionId || uuidv4(),
+            sessionStartTime: draft.sessionStartTime || Date.now(),
+          })
+          
+          return true
+        } catch (error) {
+          console.error('Failed to load draft:', error)
+          return false
+        }
+      },
+      
+      // List drafts for a student
+      listStudentDrafts: async (studentName: string) => {
+        try {
+          const response = await fetch(`/api/submissions/drafts/${encodeURIComponent(studentName)}`)
+          if (!response.ok) return []
+          return await response.json()
+        } catch {
+          return []
+        }
+      },
+      
+      // Submit for assessment - saves to server storage
+      submitForAssessment: async () => {
+        const { sessionId, sessionStartTime, document, events, chatMessages, settings } = get()
+        
+        if (!document || !sessionId) {
+          return { success: false, message: 'No document to submit' }
+        }
+        
+        if (!document.student?.name) {
+          return { success: false, message: 'Student name is required' }
+        }
+        
+        try {
+          const response = await fetch('/api/submissions/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student: document.student,
+              sessionId,
+              sessionStartTime,
+              sessionEndTime: Date.now(),
+              document: {
+                title: document.title,
+                content: document.content,
+                wordCount: document.wordCount,
+                assignmentContext: document.assignmentContext,
+              },
+              events,
+              chatMessages,
+              settings: {
+                providerType: settings.providerType,
+                ollamaModel: settings.ollamaModel,
+                openaiModel: settings.openaiModel,
+                anthropicModel: settings.anthropicModel,
+              },
+            }),
+          })
+          
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.detail || 'Failed to submit')
+          }
+          
+          const result = await response.json()
+          
+          // Delete the draft after successful submission
+          if (document.student?.name && document.title) {
+            try {
+              await fetch(`/api/submissions/draft/${encodeURIComponent(document.student.name)}/${encodeURIComponent(document.title)}`, {
+                method: 'DELETE'
+              })
+            } catch {
+              // Ignore draft deletion errors
+            }
+          }
+          
+          return { 
+            success: true, 
+            message: result.message,
+            submissionId: result.submissionId 
+          }
+        } catch (error) {
+          console.error('Failed to submit for assessment:', error)
+          return { 
+            success: false, 
+            message: error instanceof Error ? error.message : 'Submission failed' 
+          }
         }
       },
       

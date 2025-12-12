@@ -577,7 +577,7 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body 
 3. Ollama can get stuck - restart it if requests hang
 4. Clear localStorage when Zustand state gets corrupted
 
-### Session 7 - December 12, 2025 (Current)
+### Session 7 - December 12, 2025
 **Agent:** Development Agent  
 **Accomplished:**
 
@@ -603,63 +603,106 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body 
   - Updated `vite.config.ts` to use port 5175 (was 5173)
   - Avoids conflict with other projects
 
+### Session 8 - December 12, 2025 (Current)
+**Agent:** Development Agent  
+**Accomplished:**
+
+- **Made App Remotely Accessible for Student Testing**
+  - Changed backend host from `127.0.0.1` to `0.0.0.0` in `app/config.py`
+  - Updated CORS to allow all origins (`allow_origins=["*"]`)
+  - Frontend runs with `--host` flag for LAN access
+
+- **Added Student Information to Document Creation**
+  - New "Student Information" section in New Document modal
+  - Required: Student Name (must be filled to create document)
+  - Optional: Student ID
+  - Student badge appears in editor header showing name/ID
+
+- **Created Server-Side Submission Storage System**
+  - New `/api/submissions/` endpoints in `app/api/routes/submissions.py`
+  - Submissions saved to `data/submissions/{student_name}/` directory
+  - Each submission creates two files:
+    - `{title}_{timestamp}.md` - Essay in Markdown with YAML frontmatter
+    - `{title}_{timestamp}_session.json` - Full session data for assessment
+  - Includes computed stats: AI requests, paste counts, characters typed, etc.
+
+- **Added "Submit" Button to Writer**
+  - Green "Submit" button in editor header
+  - Shows submission result modal (success/failure)
+  - Submits to server automatically - no manual downloads needed!
+
+- **Created Instructor Submissions Dashboard**
+  - New "Submissions" option on home page (3-column layout)
+  - Lists all student submissions with metadata
+  - Search/filter by student name, ID, or document title
+  - Download individual MD or JSON files
+  - Delete submissions
+  - Accessible at home page → "Submissions"
+
 **Key Files Added:**
-- `frontend/src/lib/pdf-export.ts` - Comprehensive PDF generation utility
+- `app/api/routes/submissions.py` - Submission storage API
+- `frontend/src/components/SubmissionsDashboard.tsx` - Instructor dashboard
 
 **Key Files Modified:**
-- `app/services/assessment/prompts.py` - Stricter assessment prompts
-- `frontend/src/components/AssessmentResults.tsx` - Export menu with PDF/JSON
-- `frontend/vite.config.ts` - Port changed to 5175
+- `app/config.py` - Changed host to `0.0.0.0` for remote access
+- `app/api/main.py` - Added submissions router, CORS `*` origins
+- `frontend/src/stores/writer-store.ts` - Added `StudentInfo`, `submitForAssessment()`
+- `frontend/src/components/writer/WriterPage.tsx` - Student fields, submit button/modal
+- `frontend/src/App.tsx` - Added submissions dashboard route
 
-**Prompt Changes Made:**
-1. **RED FLAGS** added for copy-paste delegation:
-   - "give me a paragraph about X"
-   - "write me a paragraph for X"
-   - "complete this for me"
-   - Student never states their own position first
-2. **SCORING GUIDANCE** added:
-   - INADEQUATE: Delegation, no original thinking
-   - DEVELOPING: Some direction but mostly passive
-   - PROFICIENT: Clear original thinking BEFORE AI, meaningful pushback
-   - EXEMPLARY: Strong original position, multiple disagreements
-3. **SUMMARY** changes:
-   - Key question: "Did student USE AI or DELEGATE TO AI?"
-   - Polished AI essay with no student thinking = FAILING grade
+**API Endpoints Added:**
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/submissions/submit` | POST | Submit writing (saves MD + JSON to server) |
+| `/api/submissions/list` | GET | List all submissions (filterable by student) |
+| `/api/submissions/{id}` | GET | Get full submission details |
+| `/api/submissions/{id}/download/{md\|json}` | GET | Download specific file |
+| `/api/submissions/{id}` | DELETE | Delete a submission |
 
 ---
 
-## Testing the Prototype
+## Testing the Prototype (Updated)
 
-### For Students
-1. Go to http://localhost:5175
+### For Students (Remote Access)
+1. Go to `http://{YOUR_IP}:5175` (get IP from instructor)
 2. Click "Writer"
 3. Click "New Document"
-4. Enter title and optional assignment context
-5. Click "Create"
-6. Start writing! Use AI chat sidebar for help
-7. Right-click on selected text for AI editing
-8. Export when done (DOCX for submission, JSON for instructor)
+4. **Enter your name** (required) and optional Student ID
+5. Enter document title and assignment context
+6. Click "Create"
+7. Start writing! Use AI chat sidebar for help
+8. Right-click on selected text for AI editing
+9. **Click "Submit" when done** - your work is automatically saved to the server!
 
 ### For Instructors
-1. Collect JSON exports from students
-2. Go to http://localhost:5175
-3. Click "Analyzer"
-4. Upload essay and JSON session file
-5. Click "Analyze Submission"
-6. Review scores and evidence
-7. Click "Export Report" → "PDF Report" for a comprehensive assessment document
+1. Start the server with `python run.py` (backend) and `npm run dev -- --host` (frontend)
+2. Give students the URL: `http://{YOUR_IP}:5175`
+3. Submissions are automatically saved to `data/submissions/`
+4. Go to http://localhost:5175 → **"Submissions"** to view all student work
+5. Download MD (essay) or JSON (session) files
+6. Use **"Analyzer"** to assess submissions with the full rubric
+
+### Finding Your IP Address
+```powershell
+# Windows
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notlike "*Loopback*"} | Select-Object IPAddress
+
+# Mac/Linux
+ip addr show | grep inet | grep -v 127.0.0.1
+```
 
 ---
 
 ## Next Steps for Future Agent
 
-1. **Connect Writer → Analyzer flow** - Button to directly import session for assessment
+1. ~~**Connect Writer → Analyzer flow** - Button to directly import session for assessment~~ (Use Submissions dashboard instead)
 2. **Testing** - Unit tests for backend, integration tests for frontend
 3. ~~**Deployment** - Docker setup, production config~~ ✅ DONE
 4. **Mobile responsiveness** - Make writer usable on tablets
 5. **Test Docker deployment** - Verify docker-compose works on fresh machine
 6. **Batch assessment** - Multiple submissions at once
-7. **PDF export** - Export essays as PDF
+7. ~~**PDF export** - Export essays as PDF~~ (Already have DOCX/MD/HTML export)
+8. **Direct analyze from submissions** - One-click to load submission into analyzer
 
 ---
 

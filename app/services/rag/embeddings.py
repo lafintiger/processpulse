@@ -196,3 +196,5 @@ async def embed_query(
         return await service.embed_text(query)
 
 
+
+

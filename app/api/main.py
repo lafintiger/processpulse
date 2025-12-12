@@ -49,17 +49,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # CORS middleware for React frontend
+    # CORS middleware for React frontend - allow all origins for remote student access
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"],
+        allow_origins=["*"],  # Allow all origins for student remote access
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     
     # Register routers
-    from app.api.routes import health, models, upload, rubric, assessment, sessions, perplexica
+    from app.api.routes import health, models, upload, rubric, assessment, sessions, perplexica, submissions
     
     application.include_router(health.router, tags=["Health"])
     application.include_router(models.router, prefix="/api/models", tags=["Models"])
@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     application.include_router(assessment.router, prefix="/api/assessment", tags=["Assessment"])
     application.include_router(sessions.router, tags=["Sessions"])
     application.include_router(perplexica.router, tags=["Perplexica"])
+    application.include_router(submissions.router, tags=["Submissions"])
     
     return application
 

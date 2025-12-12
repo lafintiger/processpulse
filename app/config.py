@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # Server
-    host: str = "127.0.0.1"
+    host: str = "0.0.0.0"  # Allow remote connections
     port: int = 8000
     reload: bool = True
     

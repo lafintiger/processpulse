@@ -284,3 +284,5 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 }
 
 
+
+

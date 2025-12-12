@@ -30,6 +30,10 @@ export function WriterPage() {
     settings,
     events,
     saveSessionToBackend,
+    saveDraftToServer,
+    loadDraftFromServer,
+    listStudentDrafts,
+    submitForAssessment,
     searchOpen,
     openSearch,
     closeSearch,
@@ -41,7 +45,15 @@ export function WriterPage() {
   const [showDocList, setShowDocList] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState('')
   const [newDocContext, setNewDocContext] = useState('')
+  const [newDocStudentName, setNewDocStudentName] = useState('')
+  const [newDocStudentId, setNewDocStudentId] = useState('')
   const [showNewDocModal, setShowNewDocModal] = useState(false)
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [studentDrafts, setStudentDrafts] = useState<Array<{ id: string; documentTitle: string; wordCount: number; lastSaved: string }>>([])
+  const [checkingDrafts, setCheckingDrafts] = useState(false)
+  const [serverSaveStatus, setServerSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
@@ -98,13 +110,24 @@ export function WriterPage() {
     checkPerplexicaAvailable()
   }, [])
   
-  // Auto-save
+  // Auto-save (local + server)
   useEffect(() => {
     if (!settings.autoSave || !document) return
     
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       saveDocument()
       setLastSaved(new Date())
+      
+      // Also save to server if student has name
+      if (document.student?.name) {
+        setServerSaveStatus('saving')
+        try {
+          await saveDraftToServer()
+          setServerSaveStatus('saved')
+        } catch {
+          setServerSaveStatus('error')
+        }
+      }
     }, settings.autoSaveInterval * 1000)
     
     return () => clearInterval(interval)
@@ -138,12 +161,79 @@ export function WriterPage() {
     }
   }, [])
   
+  // Check for existing drafts when student enters their name
+  const handleCheckDrafts = async () => {
+    const studentName = newDocStudentName.trim()
+    if (!studentName) return
+    
+    setCheckingDrafts(true)
+    const drafts = await listStudentDrafts(studentName)
+    setStudentDrafts(drafts)
+    setCheckingDrafts(false)
+  }
+  
+  // Load a draft to continue working
+  const handleLoadDraft = async (documentTitle: string) => {
+    const studentName = newDocStudentName.trim()
+    if (!studentName) return
+    
+    const success = await loadDraftFromServer(studentName, documentTitle)
+    if (success) {
+      setShowNewDocModal(false)
+      setNewDocStudentName('')
+      setNewDocStudentId('')
+      setStudentDrafts([])
+    } else {
+      alert('Failed to load draft')
+    }
+  }
+  
   const handleCreateDocument = () => {
     const title = newDocTitle.trim() || 'Untitled Document'
-    createDocument(title, newDocContext.trim() || undefined)
+    const studentName = newDocStudentName.trim()
+    
+    if (!studentName) {
+      alert('Please enter your name')
+      return
+    }
+    
+    const student = {
+      name: studentName,
+      studentId: newDocStudentId.trim() || undefined,
+    }
+    
+    createDocument(title, newDocContext.trim() || undefined, student)
     setNewDocTitle('')
     setNewDocContext('')
+    setNewDocStudentName('')
+    setNewDocStudentId('')
+    setStudentDrafts([])
     setShowNewDocModal(false)
+  }
+  
+  const handleSubmitForAssessment = async () => {
+    if (!document?.student?.name) {
+      setSubmitResult({ success: false, message: 'Student name is required. Please add your name in settings.' })
+      setShowSubmitModal(true)
+      return
+    }
+    
+    setIsSubmitting(true)
+    setSubmitResult(null)
+    setShowSubmitModal(true)
+    
+    try {
+      // Save document first
+      saveDocument()
+      
+      // Submit to server
+      const result = await submitForAssessment()
+      setSubmitResult(result)
+    } catch {
+      setSubmitResult({ success: false, message: 'Submission failed. Please try again.' })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
   
   // Export handlers
@@ -262,19 +352,116 @@ export function WriterPage() {
           {/* New Document Modal */}
           {showNewDocModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
-              <div className="w-full max-w-md bg-zinc-900 rounded-xl border border-zinc-700 p-6">
-                <h2 className="text-lg font-semibold text-zinc-100 mb-4">New Document</h2>
+              <div className="w-full max-w-lg bg-zinc-900 rounded-xl border border-zinc-700 p-6">
+                <h2 className="text-lg font-semibold text-zinc-100 mb-4">Start Writing</h2>
                 
                 <div className="space-y-4">
+                  {/* Student Info Section */}
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <div className="text-xs text-amber-400 mb-2 font-medium">Student Information (Required)</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Your Name *</label>
+                        <input
+                          type="text"
+                          value={newDocStudentName}
+                          onChange={(e) => {
+                            setNewDocStudentName(e.target.value)
+                            setStudentDrafts([]) // Clear drafts when name changes
+                          }}
+                          onBlur={handleCheckDrafts}
+                          placeholder="John Doe"
+                          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm text-zinc-400 mb-1 block">Student ID</label>
+                        <input
+                          type="text"
+                          value={newDocStudentId}
+                          onChange={(e) => setNewDocStudentId(e.target.value)}
+                          placeholder="Optional"
+                          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Check for existing drafts */}
+                    {newDocStudentName.trim() && (
+                      <button
+                        onClick={handleCheckDrafts}
+                        disabled={checkingDrafts}
+                        className="mt-3 text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                      >
+                        {checkingDrafts ? (
+                          <>
+                            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Checking...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Check for saved drafts
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Existing Drafts - Continue Writing */}
+                  {studentDrafts.length > 0 && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                      <div className="text-xs text-emerald-400 mb-2 font-medium flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        You have saved work! Continue where you left off:
+                      </div>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {studentDrafts.map((draft) => (
+                          <button
+                            key={draft.id}
+                            onClick={() => handleLoadDraft(draft.documentTitle)}
+                            className="w-full p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-left flex items-center justify-between group transition-colors"
+                          >
+                            <div>
+                              <div className="text-sm text-zinc-200 font-medium">{draft.documentTitle}</div>
+                              <div className="text-xs text-zinc-500">
+                                {draft.wordCount} words · Saved {new Date(draft.lastSaved).toLocaleString()}
+                              </div>
+                            </div>
+                            <span className="text-emerald-400 text-sm font-medium group-hover:translate-x-1 transition-transform">
+                              Continue →
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Divider when drafts exist */}
+                  {studentDrafts.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 border-t border-zinc-700"></div>
+                      <span className="text-xs text-zinc-500">or start new</span>
+                      <div className="flex-1 border-t border-zinc-700"></div>
+                    </div>
+                  )}
+                  
                   <div>
-                    <label className="text-sm text-zinc-400 mb-1 block">Title</label>
+                    <label className="text-sm text-zinc-400 mb-1 block">Document Title</label>
                     <input
                       type="text"
                       value={newDocTitle}
                       onChange={(e) => setNewDocTitle(e.target.value)}
                       placeholder="My Essay"
                       className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-500/50"
-                      autoFocus
                     />
                   </div>
                   
@@ -292,16 +479,22 @@ export function WriterPage() {
                 
                 <div className="flex justify-end gap-2 mt-6">
                   <button
-                    onClick={() => setShowNewDocModal(false)}
+                    onClick={() => {
+                      setShowNewDocModal(false)
+                      setStudentDrafts([])
+                      setNewDocStudentName('')
+                      setNewDocStudentId('')
+                    }}
                     className="px-4 py-2 text-zinc-400 hover:text-zinc-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateDocument}
-                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-medium"
+                    disabled={!newDocStudentName.trim()}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg font-medium"
                   >
-                    Create
+                    Create New
                   </button>
                 </div>
               </div>
@@ -396,11 +589,50 @@ export function WriterPage() {
               ) : (
                 <span>Auto-save enabled</span>
               )}
+              {document.student?.name && serverSaveStatus !== 'idle' && (
+                <>
+                  <span>·</span>
+                  <span className={`flex items-center gap-1 ${
+                    serverSaveStatus === 'saving' ? 'text-amber-400' :
+                    serverSaveStatus === 'saved' ? 'text-teal-400' : 'text-rose-400'
+                  }`}>
+                    {serverSaveStatus === 'saving' && (
+                      <>
+                        <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Syncing...
+                      </>
+                    )}
+                    {serverSaveStatus === 'saved' && (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        </svg>
+                        Synced to server
+                      </>
+                    )}
+                    {serverSaveStatus === 'error' && 'Sync failed'}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Student Badge */}
+          {document.student && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              {document.student.name}
+              {document.student.studentId && <span className="text-amber-500/70">({document.student.studentId})</span>}
+            </div>
+          )}
+          
           {/* Provider Status */}
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${
             providerStatus === 'connected' ? 'bg-emerald-500/10 text-emerald-400' :
@@ -535,6 +767,18 @@ export function WriterPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
+          </button>
+          
+          {/* Submit Button */}
+          <button
+            onClick={handleSubmitForAssessment}
+            className="ml-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
+            title="Submit for assessment"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Submit
           </button>
         </div>
       </header>
@@ -731,6 +975,64 @@ export function WriterPage() {
               <p className="text-xs text-zinc-500">
                 Use <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-400">Cmd</kbd> instead of <kbd className="px-1 py-0.5 bg-zinc-800 rounded text-zinc-400">Ctrl</kbd> on Mac
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Submission Modal */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-zinc-900 rounded-xl border border-zinc-700 overflow-hidden">
+            <div className="p-6 text-center">
+              {isSubmitting ? (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-emerald-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-zinc-100 mb-2">Submitting...</h2>
+                  <p className="text-zinc-400">Please wait while we save your work.</p>
+                </>
+              ) : submitResult?.success ? (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-zinc-100 mb-2">Submitted Successfully!</h2>
+                  <p className="text-zinc-400 mb-4">{submitResult.message}</p>
+                  <div className="p-3 bg-zinc-800 rounded-lg text-left">
+                    <div className="text-xs text-zinc-500 mb-1">Your essay and writing process have been saved.</div>
+                    <div className="text-sm text-zinc-300">Your instructor can now review your work.</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-zinc-100 mb-2">Submission Failed</h2>
+                  <p className="text-zinc-400 mb-4">{submitResult?.message || 'An error occurred'}</p>
+                </>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-zinc-800">
+              <button
+                onClick={() => {
+                  setShowSubmitModal(false)
+                  setSubmitResult(null)
+                }}
+                className="w-full py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-lg font-medium transition-colors"
+              >
+                {submitResult?.success ? 'Continue Writing' : 'Close'}
+              </button>
             </div>
           </div>
         </div>

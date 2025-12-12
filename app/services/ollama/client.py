@@ -339,3 +339,5 @@ async def generate_embeddings(
         return await client.embed(texts, model=model)
 
 
+
+
