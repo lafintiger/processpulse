@@ -97,8 +97,9 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed Docker instructions.
 - **Python 3.11+**
 - **Node.js 18+**
 - **Ollama** running locally with models:
-  - Analysis: `gpt-oss:latest` or `qwen3:32b`
+  - Analysis: `qwen3:latest` (or `qwen3:32b` for better quality)
   - Embeddings: `bge-m3`
+  - ⚠️ Note: `gpt-oss:latest` does NOT work (no JSON mode support)
 - **Perplexica** (optional) for web search
 
 #### Installation
@@ -134,12 +135,32 @@ python run.py
 ```bash
 cd frontend
 npm run dev
-# UI runs at http://localhost:5173 (or next available port)
+# UI runs at http://localhost:5175
+```
+
+**For Remote Access (ngrok/LAN):**
+```bash
+cd frontend
+npm run dev -- --host
+# Now accessible at http://YOUR_IP:5175
 ```
 
 **Verify Ollama is running:**
 ```bash
 curl http://localhost:11434/api/tags
+```
+
+#### Remote Testing with ngrok
+
+To let students access from anywhere:
+
+```bash
+# Install ngrok: https://ngrok.com/download
+# Then expose the frontend:
+ngrok http 5175
+
+# Share the https://xxxx.ngrok.io URL with students
+# Backend API calls are proxied through the frontend
 ```
 
 ---
