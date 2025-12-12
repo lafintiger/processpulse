@@ -217,7 +217,7 @@ python run.py
 ```powershell
 cd C:\Users\lafintiger\SynologyDrive\_aiprojects\__Dev\Process-Analyzer\frontend
 npm run dev
-# Runs at http://localhost:5173
+# Runs at http://localhost:5175
 ```
 
 ### Verify Ollama
@@ -281,7 +281,7 @@ curl http://localhost:11434/api/tags
 
 | Feature | Priority | Effort |
 |---------|----------|--------|
-| Export to PDF | Low | Medium |
+| ~~Export to PDF~~ | ✅ Done | - |
 | Focus mode (minimal UI) | Low | Easy |
 | Version history/snapshots | Low | High |
 | Mobile responsiveness | Low | Medium |
@@ -526,7 +526,7 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body 
 | Embedding model | ~275 MB |
 | **Total** | **~7.5 GB** |
 
-### Session 6 - December 12, 2025 (Current)
+### Session 6 - December 12, 2025
 **Agent:** Development Agent  
 **Accomplished:**
 - **Fixed Analyzer Assessment Pipeline**
@@ -577,12 +577,61 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body 
 3. Ollama can get stuck - restart it if requests hang
 4. Clear localStorage when Zustand state gets corrupted
 
+### Session 7 - December 12, 2025 (Current)
+**Agent:** Development Agent  
+**Accomplished:**
+
+- **Improved Assessment Prompt Strictness**
+  - Updated `SYSTEM_PROMPT` with explicit red flags for AI over-dependence
+  - Added copy-paste delegation patterns that trigger automatic INADEQUATE scores
+  - Added passive consumption patterns that cap scores at DEVELOPING
+  - Created detailed scoring guidance with examples for each level
+  - Updated summary prompt to ask "delegation vs collaboration?"
+  - Updated authenticity prompt with additional delegation checks
+  - Improved semantic search queries for each criterion
+  - **Result:** Test submission scored 59/100 (down from 62/100) - more accurate for copy-paste usage
+
+- **Added PDF Export for Assessment Reports**
+  - Professional multi-page PDF reports using jsPDF + jspdf-autotable
+  - Includes: overall score, summary paragraphs, key strengths, areas for growth
+  - Detailed criterion breakdown with reasoning, evidence citations, feedback
+  - Authenticity analysis with flags and positive indicators
+  - Export button added to AssessmentResults component
+  - Also added JSON data export option
+
+- **Changed Frontend Port to 5175**
+  - Updated `vite.config.ts` to use port 5175 (was 5173)
+  - Avoids conflict with other projects
+
+**Key Files Added:**
+- `frontend/src/lib/pdf-export.ts` - Comprehensive PDF generation utility
+
+**Key Files Modified:**
+- `app/services/assessment/prompts.py` - Stricter assessment prompts
+- `frontend/src/components/AssessmentResults.tsx` - Export menu with PDF/JSON
+- `frontend/vite.config.ts` - Port changed to 5175
+
+**Prompt Changes Made:**
+1. **RED FLAGS** added for copy-paste delegation:
+   - "give me a paragraph about X"
+   - "write me a paragraph for X"
+   - "complete this for me"
+   - Student never states their own position first
+2. **SCORING GUIDANCE** added:
+   - INADEQUATE: Delegation, no original thinking
+   - DEVELOPING: Some direction but mostly passive
+   - PROFICIENT: Clear original thinking BEFORE AI, meaningful pushback
+   - EXEMPLARY: Strong original position, multiple disagreements
+3. **SUMMARY** changes:
+   - Key question: "Did student USE AI or DELEGATE TO AI?"
+   - Polished AI essay with no student thinking = FAILING grade
+
 ---
 
 ## Testing the Prototype
 
 ### For Students
-1. Go to http://localhost:5173
+1. Go to http://localhost:5175
 2. Click "Writer"
 3. Click "New Document"
 4. Enter title and optional assignment context
@@ -593,11 +642,12 @@ Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body 
 
 ### For Instructors
 1. Collect JSON exports from students
-2. Go to http://localhost:5173
+2. Go to http://localhost:5175
 3. Click "Analyzer"
 4. Upload essay and JSON session file
 5. Click "Analyze Submission"
 6. Review scores and evidence
+7. Click "Export Report" → "PDF Report" for a comprehensive assessment document
 
 ---
 

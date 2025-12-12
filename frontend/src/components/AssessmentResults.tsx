@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Assessment, ParsedChatHistory, CriterionAssessment } from '../types'
 import { ChatViewer } from './ChatViewer'
+import { exportAssessmentToPDF } from '../lib/pdf-export'
 
 interface AssessmentResultsProps {
   assessment: Assessment
@@ -11,6 +12,14 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
   const [expandedCriteria, setExpandedCriteria] = useState<Set<string>>(new Set())
   const [selectedCitation, setSelectedCitation] = useState<number | null>(null)
   const [showChatViewer, setShowChatViewer] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
+
+  const handleExportPDF = () => {
+    setShowExportMenu(false)
+    exportAssessmentToPDF(assessment, {
+      date: new Date().toLocaleDateString(),
+    })
+  }
 
   const toggleCriterion = (id: string) => {
     setExpandedCriteria(prev => {
@@ -157,14 +166,60 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
       <div className="card p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-zinc-100">Detailed Scores</h3>
-          {chatHistory && (
-            <button 
-              onClick={() => setShowChatViewer(!showChatViewer)}
-              className="btn-secondary text-sm py-2"
-            >
-              {showChatViewer ? 'Hide' : 'View'} Chat History
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Export Menu */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="btn-secondary text-sm py-2 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export Report
+              </button>
+              {showExportMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl z-50">
+                  <button
+                    onClick={handleExportPDF}
+                    className="w-full px-4 py-3 text-left text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-3 rounded-t-lg"
+                  >
+                    <svg className="w-5 h-5 text-rose-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13.5l1 1.5H11l-2-3 2-3H9.5l-1 1.5-.5.75-.5-.75-1-1.5H5l2 3-2 3h1.5l1-1.5.5-.75.5.75z"/>
+                    </svg>
+                    PDF Report
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExportMenu(false)
+                      const json = JSON.stringify(assessment, null, 2)
+                      const blob = new Blob([json], { type: 'application/json' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `assessment_${new Date().toISOString().split('T')[0]}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-3 rounded-b-lg border-t border-zinc-700"
+                  >
+                    <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM8 17h8v-2H8v2zm0-4h8v-2H8v2z"/>
+                    </svg>
+                    JSON Data
+                  </button>
+                </div>
+              )}
+            </div>
+            {chatHistory && (
+              <button 
+                onClick={() => setShowChatViewer(!showChatViewer)}
+                className="btn-secondary text-sm py-2"
+              >
+                {showChatViewer ? 'Hide' : 'View'} Chat History
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">

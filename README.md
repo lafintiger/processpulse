@@ -36,7 +36,8 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 - Evidence-based scoring with citations
 - Authenticity analysis (suspicious patterns)
 - Real-time progress in backend console
-- Export assessment reports
+- **Export PDF Reports** — Professional multi-page assessment documents
+- Export raw JSON data for further analysis
 
 ### Writer (Writing Interface) ✅ PROTOTYPE READY
 - Rich text editor (TipTap) with formatting toolbar
@@ -46,7 +47,7 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 - **Find & Replace** (Ctrl+F, Ctrl+H)
 - **Insert links** via toolbar
 - **Web Search (Perplexica)** — AI-powered research with sources
-- **Export options** — DOCX, TXT, HTML, JSON (for assessment)
+- **Export options** — DOCX, TXT, HTML, Markdown, JSON (for assessment)
 - **Browser spell check** — Built-in spell checking
 - **Keyboard shortcuts help** — Press Ctrl+/ for full list
 - **Welcome onboarding** — First-time user tutorial
