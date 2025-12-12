@@ -22,6 +22,7 @@ class ChatFormat(str, Enum):
     """Detected chat history format."""
     PLAIN_TEXT = "plain_text"
     LM_STUDIO = "lm_studio"
+    PROCESSPULSE_SESSION = "processpulse_session"
     GENERIC_JSON = "generic_json"
     UNKNOWN = "unknown"
 
@@ -135,6 +136,10 @@ def detect_chat_format(content: str, filename: Optional[str] = None) -> ChatForm
             
             # Check for LM Studio format
             if isinstance(data, dict):
+                # Check for ProcessPulse session format (from Writer interface)
+                if "chatMessages" in data or ("events" in data and "document" in data):
+                    return ChatFormat.PROCESSPULSE_SESSION
+                
                 if "messages" in data and isinstance(data.get("messages"), list):
                     # Check for LM Studio specific structure
                     messages = data["messages"]
@@ -175,6 +180,8 @@ def parse_chat_history(
     # Route to appropriate parser
     if detected_format == ChatFormat.LM_STUDIO:
         return _parse_lm_studio(content)
+    elif detected_format == ChatFormat.PROCESSPULSE_SESSION:
+        return _parse_processpulse_session(content)
     elif detected_format == ChatFormat.GENERIC_JSON:
         return _parse_generic_json(content)
     else:
@@ -291,6 +298,120 @@ def _extract_lm_studio_assistant_content(version: dict) -> str:
                     texts.append(item.get("text", ""))
     
     return "\n".join(texts)
+
+
+def _parse_processpulse_session(content: str) -> ParsedChatHistory:
+    """
+    Parse ProcessPulse Writer session export format.
+    
+    ProcessPulse session structure:
+    {
+        "document": { "title": "...", "content": "..." },
+        "chatMessages": [
+            { "id": "...", "role": "user", "content": "...", "timestamp": ... },
+            { "id": "...", "role": "assistant", "content": "...", "timestamp": ... }
+        ],
+        "events": [
+            { "eventType": "ai_request", "content": "...", "timestamp": ... },
+            { "eventType": "ai_response", "content": "...", "timestamp": ... }
+        ],
+        "metrics": { ... }
+    }
+    """
+    data = orjson.loads(content)
+    exchanges: list[ChatExchange] = []
+    notes: list[str] = []
+    
+    # Get document title
+    document = data.get("document", {})
+    conversation_name = document.get("title", "ProcessPulse Session")
+    
+    # Try to extract exchanges from chatMessages first (preferred)
+    chat_messages = data.get("chatMessages", [])
+    
+    if chat_messages:
+        exchange_num = 1
+        current_user = None
+        current_timestamp = None
+        
+        for msg in chat_messages:
+            role = msg.get("role", "")
+            content_text = msg.get("content", "")
+            timestamp = msg.get("timestamp")
+            
+            if role == "user":
+                current_user = content_text
+                current_timestamp = timestamp
+            elif role == "assistant" and current_user:
+                exchanges.append(ChatExchange(
+                    number=exchange_num,
+                    student_prompt=current_user,
+                    ai_response=content_text,
+                    timestamp=str(current_timestamp) if current_timestamp else None,
+                    metadata={
+                        "source": "processpulse_session",
+                        "response_timestamp": str(timestamp) if timestamp else None
+                    }
+                ))
+                exchange_num += 1
+                current_user = None
+                current_timestamp = None
+        
+        notes.append(f"Extracted {len(exchanges)} exchanges from chatMessages")
+    
+    # If no chatMessages, try to extract from events
+    if not exchanges:
+        events = data.get("events", [])
+        ai_requests = [e for e in events if e.get("eventType") == "ai_request"]
+        ai_responses = [e for e in events if e.get("eventType") == "ai_response"]
+        
+        exchange_num = 1
+        for req in ai_requests:
+            req_timestamp = req.get("timestamp")
+            req_content = req.get("content", "")
+            
+            # Find matching response (closest timestamp after request)
+            matching_response = None
+            for resp in ai_responses:
+                resp_timestamp = resp.get("timestamp")
+                if resp_timestamp and req_timestamp and resp_timestamp > req_timestamp:
+                    if matching_response is None or resp_timestamp < matching_response.get("timestamp", float("inf")):
+                        matching_response = resp
+            
+            if matching_response:
+                exchanges.append(ChatExchange(
+                    number=exchange_num,
+                    student_prompt=req_content,
+                    ai_response=matching_response.get("content", ""),
+                    timestamp=str(req_timestamp) if req_timestamp else None,
+                    metadata={
+                        "source": "processpulse_events",
+                        "provider": req.get("metadata", {}).get("provider", "unknown"),
+                        "isEdit": req.get("metadata", {}).get("isEdit", False)
+                    }
+                ))
+                exchange_num += 1
+        
+        if exchanges:
+            notes.append(f"Extracted {len(exchanges)} exchanges from events")
+    
+    # Add metrics info if available
+    metrics = data.get("metrics", {})
+    if metrics:
+        notes.append(f"Session metrics: {metrics.get('aiRequestCount', 0)} AI requests, {metrics.get('pasteCount', 0)} pastes")
+    
+    if not exchanges:
+        notes.append("Warning: No chat exchanges found in ProcessPulse session")
+    
+    return ParsedChatHistory(
+        platform="processpulse",
+        format_detected=ChatFormat.PROCESSPULSE_SESSION,
+        conversation_name=conversation_name,
+        exchanges=exchanges,
+        total_exchanges=len(exchanges),
+        raw_content=content,
+        parsing_notes=notes,
+    )
 
 
 def _parse_generic_json(content: str) -> ParsedChatHistory:

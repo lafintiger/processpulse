@@ -52,12 +52,13 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
     }
   }
 
-  // Group criteria by category
+  // Group criteria by category (with safety check)
+  const criteriaList = assessment.criterion_assessments || []
   const categories = [
-    { name: 'AI Collaboration Process', weight: 50, criteria: assessment.criterion_assessments.slice(0, 4) },
-    { name: 'Metacognitive Awareness & Learning', weight: 20, criteria: assessment.criterion_assessments.slice(4, 6) },
-    { name: 'Transparency & Academic Integrity', weight: 10, criteria: assessment.criterion_assessments.slice(6, 8) },
-    { name: 'Final Essay Quality', weight: 20, criteria: assessment.criterion_assessments.slice(8, 11) },
+    { name: 'AI Collaboration Process', weight: 50, criteria: criteriaList.slice(0, 4) },
+    { name: 'Metacognitive Awareness & Learning', weight: 20, criteria: criteriaList.slice(4, 6) },
+    { name: 'Transparency & Academic Integrity', weight: 10, criteria: criteriaList.slice(6, 8) },
+    { name: 'Final Essay Quality', weight: 20, criteria: criteriaList.slice(8, 11) },
   ]
 
   return (
@@ -70,21 +71,21 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
               Assessment Complete
             </h2>
             <p className="text-zinc-400">
-              Analyzed by <span className="text-teal-400 font-mono">{assessment.model_name}</span>
-              {' '}in {assessment.processing_time_seconds.toFixed(1)}s
+              Analyzed by <span className="text-teal-400 font-mono">{assessment.model_name || 'AI'}</span>
+              {assessment.processing_time_seconds != null && ` in ${assessment.processing_time_seconds.toFixed(1)}s`}
             </p>
           </div>
           
           <div className="text-center">
             <div className="text-5xl font-bold text-zinc-100 mb-1">
-              {assessment.total_score}<span className="text-2xl text-zinc-500">/{assessment.total_possible}</span>
+              {assessment.total_score ?? 0}<span className="text-2xl text-zinc-500">/{assessment.total_possible ?? 100}</span>
             </div>
             <div className="flex items-center justify-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getLevelStyle(assessment.summary.overall_quality)}`}>
-                {assessment.summary.overall_quality.charAt(0).toUpperCase() + assessment.summary.overall_quality.slice(1)}
+              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getLevelStyle(assessment.summary?.overall_quality || 'unknown')}`}>
+                {(assessment.summary?.overall_quality || 'Unknown').charAt(0).toUpperCase() + (assessment.summary?.overall_quality || 'unknown').slice(1)}
               </span>
               <span className="text-2xl font-bold text-teal-400">
-                {assessment.summary.recommended_grade}
+                {assessment.summary?.recommended_grade || 'N/A'}
               </span>
             </div>
           </div>
@@ -94,8 +95,9 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
         <div className="mt-8">
           <div className="h-4 rounded-full bg-zinc-800 overflow-hidden flex">
             {categories.map((cat, i) => {
-              const catScore = cat.criteria.reduce((sum, c) => sum + c.points_earned, 0)
-              const percentage = (catScore / assessment.total_possible) * 100
+              const catScore = cat.criteria.reduce((sum, c) => sum + (c.points_earned || 0), 0)
+              const totalPossible = assessment.total_possible || 100
+              const percentage = totalPossible > 0 ? (catScore / totalPossible) * 100 : 0
               const colors = ['bg-teal-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-400']
               return (
                 <div 
@@ -115,39 +117,41 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
       </div>
 
       {/* Summary */}
-      <div className="card p-6">
-        <h3 className="text-lg font-semibold text-zinc-100 mb-4">Summary Assessment</h3>
-        <div className="space-y-4 text-zinc-300">
-          {assessment.summary.paragraphs.map((para, i) => (
-            <p key={i}>{para}</p>
-          ))}
-        </div>
-        
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
-          <div>
-            <h4 className="text-sm font-medium text-emerald-400 mb-2">Key Strengths</h4>
-            <ul className="space-y-1">
-              {assessment.summary.key_strengths.map((s, i) => (
-                <li key={i} className="text-zinc-400 text-sm flex items-start gap-2">
-                  <span className="text-emerald-500 mt-1">+</span>
-                  {s}
-                </li>
-              ))}
-            </ul>
+      {assessment.summary && (
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-zinc-100 mb-4">Summary Assessment</h3>
+          <div className="space-y-4 text-zinc-300">
+            {(assessment.summary.paragraphs || []).map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
           </div>
-          <div>
-            <h4 className="text-sm font-medium text-amber-400 mb-2">Areas for Growth</h4>
-            <ul className="space-y-1">
-              {assessment.summary.areas_for_growth.map((a, i) => (
-                <li key={i} className="text-zinc-400 text-sm flex items-start gap-2">
-                  <span className="text-amber-500 mt-1">-</span>
-                  {a}
-                </li>
-              ))}
-            </ul>
+          
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
+            <div>
+              <h4 className="text-sm font-medium text-emerald-400 mb-2">Key Strengths</h4>
+              <ul className="space-y-1">
+                {(assessment.summary.key_strengths || []).map((s, i) => (
+                  <li key={i} className="text-zinc-400 text-sm flex items-start gap-2">
+                    <span className="text-emerald-500 mt-1">+</span>
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-amber-400 mb-2">Areas for Growth</h4>
+              <ul className="space-y-1">
+                {(assessment.summary.areas_for_growth || []).map((a, i) => (
+                  <li key={i} className="text-zinc-400 text-sm flex items-start gap-2">
+                    <span className="text-amber-500 mt-1">-</span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Detailed Criteria */}
       <div className="card p-6">
@@ -169,7 +173,7 @@ export function AssessmentResults({ assessment, chatHistory }: AssessmentResults
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-zinc-200">{category.name}</h4>
                 <span className="text-sm text-zinc-500">
-                  {category.criteria.reduce((s, c) => s + c.points_earned, 0)}/{category.weight} pts
+                  {category.criteria.reduce((s, c) => s + (c.points_earned || 0), 0)}/{category.weight} pts
                 </span>
               </div>
               

@@ -1,8 +1,8 @@
 # Agent Handoff Document - ProcessPulse
 
 **Project:** ProcessPulse (AI-Assisted Writing Process Analyzer)  
-**Last Updated:** December 11, 2025  
-**Status:** PROTOTYPE READY + DOCKER DEPLOYMENT READY  
+**Last Updated:** December 12, 2025  
+**Status:** ✅ ANALYZER WORKING + WRITER READY + DOCKER READY  
 **License:** Polyform Noncommercial 1.0.0 (Free for education)  
 **GitHub:** https://github.com/lafintiger/processpulse
 
@@ -300,7 +300,81 @@ curl http://localhost:11434/api/tags
 
 ---
 
-## Resolved Issues
+## ⚠️ CRITICAL LESSONS LEARNED - READ BEFORE MAKING CHANGES
+
+### 1. Model Selection for JSON Output (CRITICAL)
+**Problem:** `gpt-oss:latest` and some other models do NOT properly support Ollama's `format: "json"` mode. They return malformed JSON or empty responses, causing all assessment scores to be 0.
+
+**Solution:** Always use models known to support JSON mode:
+- ✅ `qwen3:latest` - Works well, fast (4.9GB)
+- ✅ `huihui_ai/qwen3-abliterated:8b` - Works well, fast (4.7GB)
+- ✅ `huihui_ai/qwen3-abliterated:32b` - Works well, slower but better quality (18.4GB)
+- ❌ `gpt-oss:latest` - DOES NOT work with JSON mode
+
+**How to test a model's JSON support:**
+```powershell
+$body = @{model="MODEL_NAME"; prompt="Generate JSON: {score: 75}"; format="json"; stream=$false} | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body $body
+```
+
+### 2. Ollama Connection Issues
+**Problem:** After a long-running or failed request, Ollama can get stuck and stop responding to new requests.
+
+**Symptoms:**
+- API calls to Ollama hang indefinitely
+- `/api/tags` endpoint times out
+- Assessment starts but never progresses
+
+**Solution:**
+1. Kill Ollama: `taskkill /f /im ollama.exe` or via Task Manager
+2. Restart Ollama: `ollama serve`
+3. Verify it's responding: `Invoke-RestMethod -Uri "http://localhost:11434/api/tags"`
+
+### 3. Chat Sidebar Scrolling (CSS Flexbox)
+**Problem:** Chat messages scroll off the visible area or don't scroll at all.
+
+**Root Cause:** Flexbox containers need explicit height constraints for `overflow-y: auto` to work.
+
+**Solution - Apply these CSS rules:**
+```css
+/* Parent container must have fixed/explicit height */
+.chat-wrapper {
+  height: 100%;      /* or calc(100vh - header) */
+  overflow: hidden;  /* Prevent parent from growing */
+}
+
+/* Scrollable container needs min-h-0 AND explicit height */
+.messages-container {
+  flex: 1;
+  min-height: 0;       /* CRITICAL for flexbox scrolling */
+  overflow-y: auto;
+  min-height: 500px;   /* Fallback to ensure visibility */
+}
+
+/* Fixed elements (header, input) should not shrink */
+.header, .input-area {
+  flex-shrink: 0;
+}
+```
+
+### 4. Zustand State Persistence Issues
+**Problem:** State gets stuck in invalid states (e.g., `providerStatus: 'checking'` forever) due to localStorage persistence.
+
+**Solution:** When debugging connection issues:
+1. Open DevTools → Application → Local Storage
+2. Clear `writer-store` key
+3. Refresh the page
+
+### 5. ProcessPulse Session JSON Format
+**Problem:** The Analyzer didn't recognize session exports from the Writer.
+
+**Solution:** Added `PROCESSPULSE_SESSION` format to chat parser that extracts exchanges from both `chatMessages` and `events` arrays.
+
+---
+
+## Resolved Issues (Complete List)
+
+### Frontend Issues
 
 1. **Black screen after document creation**
    - Cause: Variable shadowing (`document` vs global `document`)
@@ -310,12 +384,46 @@ curl http://localhost:11434/api/tags
    - Cause: Auto-updating state on selection change
    - Fix: Use right-click context menu instead
 
-3. **Unicode emoji errors**
+3. **Chat sidebar scrolling broken**
+   - Cause: Flexbox containers without proper height constraints
+   - Fix: Added `min-h-0`, `flex-shrink-0`, fixed `minHeight` on messages container
+
+4. **Resizable panel needed between editor and chat**
+   - Fix: Implemented draggable divider with `useState` for width, mouse event handlers
+
+5. **Provider status stuck at 'checking'**
+   - Cause: Zustand localStorage persistence with stale state
+   - Fix: Clear localStorage, also removed excessive console logging
+
+### Backend Issues
+
+6. **Unicode emoji errors**
    - Cause: Windows console encoding
    - Fix: Removed all emojis from Python code
 
-4. **TailwindCSS v4 config**
-   - Fix: Use `@import "tailwindcss"` and `@tailwindcss/postcss`
+7. **Assessment returning all zeros**
+   - Cause: `gpt-oss:latest` model doesn't support JSON format mode
+   - Fix: Changed default model to `qwen3:latest` (or `huihui_ai/qwen3-abliterated:32b`)
+
+8. **Assessment endpoint was placeholder**
+   - Cause: Original endpoint just returned mock data
+   - Fix: Implemented full assessment pipeline integration
+
+9. **ProcessPulse session format not recognized**
+   - Cause: Chat parser didn't know about Writer's export format
+   - Fix: Added `PROCESSPULSE_SESSION` format with parsing for `chatMessages` and `events`
+
+10. **Perplexica CORS errors**
+    - Cause: Browser blocking cross-origin requests to localhost:3000
+    - Fix: Created backend proxy at `/api/perplexica/`
+
+### Configuration Issues
+
+11. **TailwindCSS v4 config**
+    - Fix: Use `@import "tailwindcss"` and `@tailwindcss/postcss`
+
+12. **Vite proxy for API calls**
+    - Added proxy in `vite.config.ts` for `/api` to `http://localhost:8000`
 
 ---
 
@@ -377,7 +485,7 @@ curl http://localhost:11434/api/tags
 - `frontend/src/App.tsx` - Wrapped with ErrorBoundary
 
 ### Session 5 - December 11, 2025 (Late Evening)
-**Agent:** Development Agent (Current)  
+**Agent:** Development Agent  
 **Accomplished:**
 - **Fixed Perplexica CORS issue**
   - Created backend proxy at `/api/perplexica/` to bypass browser CORS restrictions
@@ -417,6 +525,57 @@ curl http://localhost:11434/api/tags
 | Chat model (llama3.1:8b) | ~4.7 GB |
 | Embedding model | ~275 MB |
 | **Total** | **~7.5 GB** |
+
+### Session 6 - December 12, 2025 (Current)
+**Agent:** Development Agent  
+**Accomplished:**
+- **Fixed Analyzer Assessment Pipeline**
+  - Assessment endpoint was returning placeholder data - now runs full pipeline
+  - Added ProcessPulse session format parser (`PROCESSPULSE_SESSION`)
+  - Session JSON exports from Writer now parse correctly
+  
+- **Fixed Model JSON Support Issue**
+  - Discovered `gpt-oss:latest` doesn't support Ollama's `format: "json"` mode
+  - Changed default model to `qwen3:latest` (configurable)
+  - Documented which models work with JSON mode
+  
+- **Fixed Chat Sidebar Scrolling**
+  - Root cause: Flexbox containers need `min-h-0` for scrolling to work
+  - Added fixed `minHeight: 600px` to messages area
+  - Made main page container `h-screen overflow-hidden`
+  
+- **Added Resizable Chat Panel**
+  - Draggable divider between editor and chat
+  - Persists width during session
+  
+- **Added Markdown Export**
+  - New `exportToMarkdown()` function in export-utils.ts
+  - Converts HTML to clean Markdown format
+  
+- **Fixed AssessmentResults Undefined Errors**
+  - Added null checks for `processing_time_seconds`, `total_score`, `total_possible`
+  - Added safety for `summary` and `criterion_assessments` arrays
+
+- **Documentation**
+  - Added comprehensive "Critical Lessons Learned" section
+  - Documented all resolved issues with causes and fixes
+  - Future agents won't repeat these mistakes
+
+**Key Files Modified:**
+- `app/api/routes/assessment.py` - Full assessment implementation
+- `app/services/parsing/chat_parser.py` - ProcessPulse session format
+- `app/config.py` - Changed default model to qwen3:latest
+- `frontend/src/App.tsx` - Assessment handling, progress display
+- `frontend/src/components/writer/WriterPage.tsx` - Resizable panels, markdown export
+- `frontend/src/components/writer/ChatSidebar.tsx` - Fixed scrolling
+- `frontend/src/components/AssessmentResults.tsx` - Null safety checks
+- `frontend/src/lib/export-utils.ts` - Added markdown export
+
+**Critical Learnings:**
+1. Always test model JSON support before using for assessment
+2. Flexbox scrolling requires `min-h-0` on child containers
+3. Ollama can get stuck - restart it if requests hang
+4. Clear localStorage when Zustand state gets corrupted
 
 ---
 

@@ -186,6 +186,104 @@ export function exportToTxt(
 }
 
 /**
+ * Convert HTML to Markdown
+ */
+function htmlToMarkdown(html: string): string {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  let markdown = ''
+  
+  function processNode(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || ''
+    }
+    
+    if (node.nodeType !== Node.ELEMENT_NODE) return ''
+    
+    const element = node as HTMLElement
+    const tagName = element.tagName.toLowerCase()
+    let content = ''
+    
+    // Process children first
+    element.childNodes.forEach(child => {
+      content += processNode(child)
+    })
+    
+    switch (tagName) {
+      case 'h1':
+        return `# ${content}\n\n`
+      case 'h2':
+        return `## ${content}\n\n`
+      case 'h3':
+        return `### ${content}\n\n`
+      case 'h4':
+        return `#### ${content}\n\n`
+      case 'h5':
+        return `##### ${content}\n\n`
+      case 'h6':
+        return `###### ${content}\n\n`
+      case 'p':
+        return `${content}\n\n`
+      case 'strong':
+      case 'b':
+        return `**${content}**`
+      case 'em':
+      case 'i':
+        return `*${content}*`
+      case 'u':
+        return `<u>${content}</u>`
+      case 'a':
+        const href = element.getAttribute('href') || ''
+        return `[${content}](${href})`
+      case 'ul':
+        return content + '\n'
+      case 'ol':
+        return content + '\n'
+      case 'li':
+        const parent = element.parentElement
+        if (parent?.tagName.toLowerCase() === 'ol') {
+          const index = Array.from(parent.children).indexOf(element) + 1
+          return `${index}. ${content}\n`
+        }
+        return `- ${content}\n`
+      case 'blockquote':
+        return content.split('\n').map(line => `> ${line}`).join('\n') + '\n\n'
+      case 'code':
+        return `\`${content}\``
+      case 'pre':
+        return `\`\`\`\n${content}\n\`\`\`\n\n`
+      case 'br':
+        return '\n'
+      case 'hr':
+        return '\n---\n\n'
+      default:
+        return content
+    }
+  }
+  
+  div.childNodes.forEach(child => {
+    markdown += processNode(child)
+  })
+  
+  // Clean up extra whitespace
+  return markdown.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/**
+ * Export document to Markdown
+ */
+export function exportToMarkdown(
+  title: string,
+  htmlContent: string,
+  filename?: string
+): void {
+  const markdown = `# ${title}\n\n${htmlToMarkdown(htmlContent)}`
+  const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+  const safeFilename = (filename || title).replace(/[^a-z0-9]/gi, '_')
+  saveAs(blob, `${safeFilename}.md`)
+}
+
+/**
  * Export document to HTML
  */
 export function exportToHtml(

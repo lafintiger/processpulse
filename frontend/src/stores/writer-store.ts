@@ -479,6 +479,7 @@ Provide ONLY the replacement text. Do not include explanations, quotes, or any o
           })
           
         } catch (error) {
+          console.error('AI request failed:', error)
           set({ aiError: error instanceof Error ? error.message : 'AI request failed' })
         } finally {
           set({ isAiThinking: false })
@@ -798,7 +799,7 @@ Provide ONLY the revised text. Do not include explanations or quotes around the 
           get().checkPerplexicaAvailable()
           
         } catch (error) {
-          console.error('Failed to initialize provider:', error)
+          console.error('Failed to initialize AI provider:', error)
           set({ providerStatus: 'disconnected' })
         }
       },

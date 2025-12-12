@@ -29,13 +29,13 @@ ProcessPulse is a tool for educators to assess student writing by analyzing both
 
 ## Features
 
-### Analyzer (Assessment Tool)
+### Analyzer (Assessment Tool) ✅ FULLY FUNCTIONAL
 - Upload essays (TXT, DOCX, PDF, Markdown)
-- Upload AI chat histories (ChatGPT, LM Studio, plain text)
+- Upload AI chat histories (ChatGPT, LM Studio, ProcessPulse sessions, plain text)
 - 11-criterion rubric across 4 categories
 - Evidence-based scoring with citations
-- Multiple model validation ("Three Judges")
-- Authenticity flags (suspicious patterns)
+- Authenticity analysis (suspicious patterns)
+- Real-time progress in backend console
 - Export assessment reports
 
 ### Writer (Writing Interface) ✅ PROTOTYPE READY

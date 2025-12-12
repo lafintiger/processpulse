@@ -8,13 +8,13 @@
  * - Process capture
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useWriterStore } from '../../stores/writer-store'
 import { Editor } from './Editor'
 import { ChatSidebar } from './ChatSidebar'
 import { SettingsPanel } from './SettingsPanel'
 import { SearchPanel } from './SearchPanel'
-import { exportToDocx, exportToTxt, exportToHtml } from '../../lib/export-utils'
+import { exportToDocx, exportToTxt, exportToHtml, exportToMarkdown } from '../../lib/export-utils'
 
 export function WriterPage() {
   const {
@@ -49,6 +49,48 @@ export function WriterPage() {
   const [showWelcome, setShowWelcome] = useState(() => {
     return !localStorage.getItem('processpulse_welcomed')
   })
+  
+  // Resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(384) // Default w-96 = 384px
+  const [isResizing, setIsResizing] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }, [])
+  
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing || !containerRef.current) return
+    
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const newWidth = containerRect.right - e.clientX
+    
+    // Constrain between 280px and 600px
+    const clampedWidth = Math.min(Math.max(newWidth, 280), 600)
+    setSidebarWidth(clampedWidth)
+  }, [isResizing])
+  
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false)
+  }, [])
+  
+  // Add/remove resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      window.document.addEventListener('mousemove', handleMouseMove)
+      window.document.addEventListener('mouseup', handleMouseUp)
+      window.document.body.style.cursor = 'col-resize'
+      window.document.body.style.userSelect = 'none'
+    }
+    
+    return () => {
+      window.document.removeEventListener('mousemove', handleMouseMove)
+      window.document.removeEventListener('mouseup', handleMouseUp)
+      window.document.body.style.cursor = ''
+      window.document.body.style.userSelect = ''
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp])
   
   // Initialize AI provider and check Perplexica on mount
   useEffect(() => {
@@ -121,6 +163,12 @@ export function WriterPage() {
     if (!document) return
     setShowExportMenu(false)
     exportToHtml(document.title, document.content)
+  }
+  
+  const handleExportMarkdown = () => {
+    if (!document) return
+    setShowExportMenu(false)
+    exportToMarkdown(document.title, document.content)
   }
   
   const handleExportSession = async () => {
@@ -317,7 +365,7 @@ export function WriterPage() {
   
   // Main editor view
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#09090b', color: '#e4e4e7' }}>
+    <div className="h-screen flex flex-col" style={{ backgroundColor: '#09090b', color: '#e4e4e7', overflow: 'hidden' }}>
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur-md">
         <div className="flex items-center gap-4">
@@ -429,6 +477,15 @@ export function WriterPage() {
                   </svg>
                   HTML File (.html)
                 </button>
+                <button
+                  onClick={handleExportMarkdown}
+                  className="w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM6 13h2v4H7v-2.5L6 16l-1-1.5V17H4v-4h2l1 1.5 1-1.5zm6 0h1.5v4H12v-2l-1 2h-.5l-1-2v2H8v-4h1.5l1 2 1-2z"/>
+                  </svg>
+                  Markdown (.md)
+                </button>
                 <div className="border-t border-zinc-700 my-1"></div>
                 <div className="px-3 py-1.5 text-xs text-zinc-500">
                   For Assessment
@@ -482,10 +539,10 @@ export function WriterPage() {
         </div>
       </header>
       
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Content - NO SCROLLING HERE */}
+      <div ref={containerRef} className="flex-1 flex min-h-0" style={{ overflow: 'hidden', height: 'calc(100vh - 52px)' }}>
         {/* Editor */}
-        <div className={`flex-1 overflow-y-auto p-6 ${sidebarOpen ? 'pr-0' : ''}`}>
+        <div className={`flex-1 min-w-0 overflow-y-auto p-6 ${sidebarOpen ? 'pr-0' : ''}`}>
           <div className="max-w-4xl mx-auto">
             {/* Assignment Context */}
             {document.assignmentContext && (
@@ -499,10 +556,33 @@ export function WriterPage() {
           </div>
         </div>
         
+        {/* Resize Handle */}
+        {sidebarOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize chat panel"
+            tabIndex={0}
+            onMouseDown={handleMouseDown}
+            className={`w-2 flex-shrink-0 cursor-col-resize group transition-colors ${
+              isResizing ? 'bg-teal-500/70' : 'bg-zinc-700 hover:bg-teal-500/50'
+            }`}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <div className={`w-1 h-12 rounded-full transition-colors ${
+                isResizing ? 'bg-teal-400' : 'bg-zinc-500 group-hover:bg-teal-400'
+              }`} />
+            </div>
+          </div>
+        )}
+        
         {/* Chat Sidebar */}
         {sidebarOpen && (
-          <div className="w-96 border-l border-zinc-800 flex-shrink-0">
-            <ChatSidebar className="h-full" />
+          <div 
+            className="h-full flex-shrink-0 overflow-hidden"
+            style={{ width: sidebarWidth }}
+          >
+            <ChatSidebar />
           </div>
         )}
       </div>

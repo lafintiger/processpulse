@@ -3,15 +3,23 @@ Assessment endpoints.
 
 These endpoints handle the core assessment functionality:
 - Creating new assessments
-- Running AI analysis
+- Running AI analysis with streaming progress
 - Retrieving results
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, AsyncGenerator
+import json
+import traceback
+import asyncio
 
 from app.config import get_settings
+from app.services.parsing.essay_parser import parse_essay, ParsedEssay
+from app.services.parsing.chat_parser import parse_chat_history, ParsedChatHistory
+from app.services.rubric import create_default_rubric
+from app.services.assessment.analyzer import assess_submission
 
 router = APIRouter()
 settings = get_settings()
@@ -38,41 +46,76 @@ class AssessmentResponse(BaseModel):
     message: str
 
 
+# Global progress storage for SSE
+_progress_store: dict[str, dict] = {}
+
+
 @router.post("/create")
 async def create_assessment(
     request: AssessmentRequest,
     background_tasks: BackgroundTasks,
 ):
     """
-    Create a new assessment.
+    Create and run an assessment.
     
-    This endpoint:
-    1. Validates the input
-    2. Creates a database record
-    3. Queues the AI analysis in the background
-    4. Returns immediately with assessment ID
-    
-    The actual analysis happens asynchronously. Poll /status/{id} for progress.
+    This endpoint runs synchronously and returns the full result.
+    Progress is printed to the console.
     """
-    # For now, return a placeholder - full implementation coming
-    # This is the structure for the MVP
-    
-    return {
-        "message": "Assessment endpoint ready. Full implementation pending RAG integration.",
-        "request_received": {
-            "essay_length": len(request.essay_text),
-            "has_chat_history": bool(request.chat_history_json),
-            "model": request.model_name or settings.default_analysis_model,
-            "multi_model": request.multi_model,
-            "authenticity_check": request.authenticity_check,
-        },
-        "next_steps": [
-            "Implement RAG chunking and embedding",
-            "Create assessment prompts",
-            "Build criterion-by-criterion analysis",
-            "Add multi-model support",
-        ]
-    }
+    try:
+        print("\n" + "="*60)
+        print("[Assessment] Starting new assessment")
+        print("="*60)
+        
+        # Parse the essay
+        print("[1/14] Parsing essay...")
+        essay = parse_essay(request.essay_text, filename="essay.txt")
+        print(f"       Essay: {essay.word_count} words")
+        
+        # Parse the chat history from JSON
+        print("[2/14] Parsing chat history...")
+        chat_history = parse_chat_history(request.chat_history_json)
+        print(f"       Chat: {chat_history.total_exchanges} exchanges ({chat_history.platform})")
+        
+        # Get the rubric
+        rubric = create_default_rubric()
+        
+        # Determine model to use
+        model = request.model_name or settings.default_analysis_model
+        print(f"[3/14] Using model: {model}")
+        
+        # Progress callback
+        def progress_callback(message: str, current: int, total: int):
+            step = current + 3  # Offset for parsing steps
+            print(f"[{step}/{total + 3}] {message}")
+        
+        # Run the assessment
+        result = await assess_submission(
+            chat_history=chat_history,
+            essay=essay,
+            rubric=rubric,
+            assignment_context=request.assignment_context,
+            model=model,
+            run_authenticity=request.authenticity_check,
+            authenticity_mode=request.authenticity_mode or "conservative",
+            progress_callback=progress_callback,
+        )
+        
+        # Convert to dict for JSON response
+        result_dict = result.to_dict()
+        
+        print("="*60)
+        print(f"[Assessment] Complete! Score: {result_dict.get('total_score', 0)}/{result_dict.get('total_possible', 100)}")
+        print("="*60 + "\n")
+        
+        return result_dict
+        
+    except Exception as e:
+        print(f"\n[Assessment] ERROR: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Assessment failed: {str(e)}"
+        )
 
 
 @router.get("/status/{assessment_id}")
@@ -130,5 +173,3 @@ async def list_assessments(
         "assessments": [],
         "total": 0,
     }
-
-
